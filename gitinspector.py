@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # coding: utf-8
 #
 # Copyright © 2015 Ejwa Software. All rights reserved.
@@ -21,4 +21,4 @@
 from gitinspector import gitinspector
 
 if __name__ == "__main__":
-	gitinspector.main()
+    gitinspector.main()
