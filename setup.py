@@ -23,30 +23,39 @@ from gitinspector.version import __version__
 from glob import glob
 from setuptools import setup, find_packages
 
+
 def read(fname):
-    return open(os.path.join(os.path.dirname(__file__), fname)).read()
+    return open(os.path.join(os.path.dirname(__file__), fname), encoding="utf-8").read()
+
 
 setup(
-	name = "gitinspector",
-	version = __version__,
-	author = "Ejwa Software",
-	author_email = "gitinspector@ejwa.se",
-	description = ("A statistical analysis tool for git repositories."),
-	license = "GNU GPL v3",
-	keywords = "analysis analyzer git python statistics stats vc vcs timeline",
-	url = "https://github.com/ejwa/gitinspector",
-	long_description = read("DESCRIPTION.txt"),
-	classifiers = [
-		"Development Status :: 4 - Beta",
-		"Environment :: Console",
-		"Intended Audience :: Developers",
-		"License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
-		"Topic :: Software Development :: Version Control",
-		"Topic :: Utilities"
-	],
-	packages = find_packages(exclude = ['tests']),
-	package_data = {"": ["html/*", "translations/*"]},
-	data_files = [("share/doc/gitinspector", glob("*.txt"))],
-	entry_points = {"console_scripts": ["gitinspector = gitinspector.gitinspector:main"]},
-	zip_safe = False
+    name="gitinspector",
+    version=__version__,
+    author="Ejwa Software",
+    author_email="gitinspector@ejwa.se",
+    description=("A statistical analysis tool for git repositories."),
+    license="GNU GPL v3",
+    keywords="analysis analyzer git python statistics stats vc vcs timeline",
+    url="https://github.com/ejwa/gitinspector",
+    long_description=read("DESCRIPTION.txt"),
+    python_requires=">=3.8",
+    classifiers=[
+        "Development Status :: 4 - Beta",
+        "Environment :: Console",
+        "Intended Audience :: Developers",
+        "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+        "Topic :: Software Development :: Version Control",
+        "Topic :: Utilities",
+    ],
+    packages=find_packages(exclude=["tests"]),
+    package_data={"": ["html/*", "translations/*"]},
+    data_files=[("share/doc/gitinspector", glob("*.txt"))],
+    entry_points={"console_scripts": ["gitinspector = gitinspector.gitinspector:main"]},
+    zip_safe=False,
 )
