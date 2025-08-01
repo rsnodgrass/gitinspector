@@ -6,3 +6,5 @@ node_modules
 *.egg-info
 *.pyc
 *.tgz
+team_config.yaml
+venv/

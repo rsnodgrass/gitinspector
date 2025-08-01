@@ -80,6 +80,7 @@ class BlameThread(threading.Thread):
             not filtering.set_filtered(author, "author")
             and not filtering.set_filtered(self.blamechunk_email, "email")
             and not filtering.set_filtered(self.blamechunk_revision, "revision")
+            and not filtering.is_author_team_filtered(author)
         ):
 
             __blame_lock__.acquire()  # Global lock used to protect calls from here...

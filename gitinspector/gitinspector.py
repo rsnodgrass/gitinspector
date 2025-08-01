@@ -26,7 +26,20 @@ from .blame import Blame
 from .changes import Changes
 from .config import GitConfig
 from .metrics import MetricsLogic
-from . import basedir, clone, extensions, filtering, format, help, interval, localization, optval, terminal, version
+from . import (
+    basedir,
+    clone,
+    extensions,
+    filtering,
+    format,
+    help,
+    interval,
+    localization,
+    optval,
+    teamconfig,
+    terminal,
+    version,
+)
 from .output import outputable
 from .output.blameoutput import BlameOutput
 from .output.changesoutput import ChangesOutput
@@ -150,6 +163,7 @@ def main():
                 "responsibilities:true",
                 "since=",
                 "grading:true",
+                "team-config=",
                 "timeline:true",
                 "until=",
                 "version",
@@ -205,6 +219,12 @@ def main():
                 run.hard = grading
                 run.timeline = grading
                 run.useweeks = grading
+            elif o == "--team-config":
+                try:
+                    teamconfig.load_team_config(a)
+                except teamconfig.TeamConfigError as e:
+                    print(sys.argv[0], "\b:", e.msg, file=sys.stderr)
+                    sys.exit(1)
             elif o == "-T":
                 run.timeline = True
             elif o == "--timeline":
@@ -228,6 +248,7 @@ def main():
         filtering.InvalidRegExpError,
         format.InvalidFormatError,
         optval.InvalidOptionArgument,
+        teamconfig.TeamConfigError,
         getopt.error,
     ) as exception:
         print(sys.argv[0], "\b:", exception.msg, file=sys.stderr)

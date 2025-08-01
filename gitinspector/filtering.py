@@ -20,6 +20,7 @@
 
 import re
 import subprocess
+from . import teamconfig
 
 __filters__ = {
     "file": [set(), set()],
@@ -102,3 +103,16 @@ def set_filtered(string, filter_type="file"):
             except:
                 raise InvalidRegExpError(_("invalid regular expression specified"))
     return False
+
+
+def is_author_team_filtered(author_name):
+    """Check if an author should be filtered out based on team configuration.
+
+    This is inclusion-based filtering - returns True if the author should be EXCLUDED.
+    Returns False if team filtering is disabled or if the author is a team member.
+    """
+    if not teamconfig.is_team_filtering_enabled():
+        return False  # No team filtering enabled, don't filter anyone
+
+    # If team filtering is enabled, exclude authors who are NOT team members
+    return not teamconfig.is_team_member(author_name)
