@@ -76,7 +76,20 @@ class TimelineData(object):
         if authorinfo:
             i = multiplier * (self.entries[(author, period)].insertions / total)
             j = multiplier * (self.entries[(author, period)].deletions / total)
-            return (int(i), int(j))
+
+            # Use round() instead of int() to avoid truncating meaningful activity
+            rounded_i = round(i)
+            rounded_j = round(j)
+
+            # If author has meaningful activity but rounds to 0, show at least 1 sign
+            if rounded_i == 0 and rounded_j == 0 and (authorinfo.insertions > 0 or authorinfo.deletions > 0):
+                # Show activity based on which type (insertions vs deletions) is larger
+                if authorinfo.insertions >= authorinfo.deletions:
+                    rounded_i = 1
+                else:
+                    rounded_j = 1
+
+            return (rounded_i, rounded_j)
         else:
             return (0, 0)
 

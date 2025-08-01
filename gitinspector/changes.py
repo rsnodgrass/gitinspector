@@ -178,6 +178,7 @@ class ChangesThread(threading.Thread):
                     or filtering.set_filtered(commit.email, "email")
                     or filtering.set_filtered(commit.sha, "revision")
                     or filtering.set_filtered(commit.sha, "message")
+                    or filtering.is_author_team_filtered(commit.author)
                 ):
                     is_filtered = True
 
@@ -300,7 +301,13 @@ class Changes(object):
     def get_authorinfo_list(self):
         if not self.authors:
             for i in self.commits:
-                Changes.modify_authorinfo(self.authors, i.author, i)
+                # Use consolidated author name by email to avoid duplicates
+                try:
+                    consolidated_author = self.get_latest_author_by_email(i.email)
+                    Changes.modify_authorinfo(self.authors, consolidated_author, i)
+                except KeyError:
+                    # Fallback to original author name if email mapping not found
+                    Changes.modify_authorinfo(self.authors, i.author, i)
 
         return self.authors
 
