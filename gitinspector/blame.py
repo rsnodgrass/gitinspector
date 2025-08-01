@@ -30,8 +30,41 @@ from . import comment, extensions, filtering, format, interval, terminal
 NUM_THREADS = multiprocessing.cpu_count()
 
 
+def is_test_file(filename):
+    """Determine if a file is a test file based on its path and name."""
+    filename_lower = filename.lower()
+
+    # Check for test directories
+    test_dirs = ["test/", "tests/", "__tests__/", "spec/", "specs/", "testing/"]
+    if any(test_dir in filename_lower for test_dir in test_dirs):
+        return True
+
+    # Check for test file naming patterns
+    test_patterns = [".test.", ".spec.", "-test.", "-spec.", "_test.", "_spec."]
+    if any(pattern in filename_lower for pattern in test_patterns):
+        return True
+
+    # Check for test file extensions
+    test_extensions = [".test.", ".spec."]
+    for ext in test_extensions:
+        if ext in filename_lower and (
+            filename_lower.endswith(".js")
+            or filename_lower.endswith(".ts")
+            or filename_lower.endswith(".tsx")
+            or filename_lower.endswith(".py")
+            or filename_lower.endswith(".java")
+            or filename_lower.endswith(".cpp")
+            or filename_lower.endswith(".c")
+        ):
+            return True
+
+    return False
+
+
 class BlameEntry(object):
     rows = 0
+    main_rows = 0  # Rows in non-test files
+    test_rows = 0  # Rows in test files
     skew = 0  # Used when calculating average code age.
     comments = 0
 
@@ -90,6 +123,12 @@ class BlameThread(threading.Thread):
 
             self.blames[(author, self.filename)].comments += comments
             self.blames[(author, self.filename)].rows += 1
+
+            # Categorize the row as test or main code
+            if is_test_file(self.filename):
+                self.blames[(author, self.filename)].test_rows += 1
+            else:
+                self.blames[(author, self.filename)].main_rows += 1
 
             if (self.blamechunk_time - self.changes.first_commit_date).days > 0:
                 self.blames[(author, self.filename)].skew += (
@@ -215,6 +254,8 @@ class Blame(object):
                 summed_blames[i[0][0]] = BlameEntry()
 
             summed_blames[i[0][0]].rows += i[1].rows
+            summed_blames[i[0][0]].main_rows += i[1].main_rows
+            summed_blames[i[0][0]].test_rows += i[1].test_rows
             summed_blames[i[0][0]].skew += i[1].skew
             summed_blames[i[0][0]].comments += i[1].comments
 

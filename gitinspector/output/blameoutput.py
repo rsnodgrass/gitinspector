@@ -43,10 +43,8 @@ class BlameOutput(Outputable):
     def output_html(self):
         blame_xml = '<div><div class="box">'
         blame_xml += "<p>" + _(BLAME_INFO_TEXT) + '.</p><div><table id="blame" class="git">'
-        blame_xml += (
-            "<thead><tr> <th>{0}</th> <th>{1}</th> <th>{2}</th> <th>{3}</th> <th>{4}</th> </tr></thead>".format(
-                _("Author"), _("Rows"), _("Stability"), _("Age"), _("% in comments")
-            )
+        blame_xml += "<thead><tr> <th>{0}</th> <th>{1}</th> <th>{2}</th> <th>{3}</th> <th>{4}</th> <th>{5}</th> <th>{6}</th> </tr></thead>".format(
+            _("Author"), _("Main"), _("Test"), _("Test %"), _("Stability"), _("Age"), _("% in comments")
         )
         blame_xml += "<tbody>"
         chart_data = ""
@@ -66,7 +64,13 @@ class BlameOutput(Outputable):
             else:
                 blame_xml += "<td>" + entry[0] + "</td>"
 
-            blame_xml += "<td>" + str(entry[1].rows) + "</td>"
+            # Calculate test percentage
+            total_rows = entry[1].main_rows + entry[1].test_rows
+            test_percentage = (100.0 * entry[1].test_rows / total_rows) if total_rows > 0 else 0.0
+
+            blame_xml += "<td>" + str(entry[1].main_rows) + "</td>"
+            blame_xml += "<td>" + str(entry[1].test_rows) + "</td>"
+            blame_xml += "<td>" + "{0:.1f}".format(test_percentage) + "</td>"
             blame_xml += "<td>" + (
                 "{0:.1f}".format(Blame.get_stability(entry[0], entry[1].rows, self.changes)) + "</td>"
             )
@@ -79,7 +83,7 @@ class BlameOutput(Outputable):
             if blames[-1] != entry:
                 chart_data += ", "
 
-        blame_xml += '<tfoot><tr> <td colspan="5">&nbsp;</td> </tr></tfoot></tbody></table>'
+        blame_xml += '<tfoot><tr> <td colspan="7">&nbsp;</td> </tr></tfoot></tbody></table>'
         blame_xml += '<div class="chart" id="blame_chart"></div></div>'
         blame_xml += '<script type="text/javascript">'
         blame_xml += '    blame_plot = $.plot($("#blame_chart"), [{0}], {{'.format(chart_data)
@@ -107,10 +111,17 @@ class BlameOutput(Outputable):
         for i in sorted(self.blame.get_summed_blames().items()):
             author_email = self.changes.get_latest_email_by_author(i[0])
 
+            # Calculate test percentage
+            total_rows = i[1].main_rows + i[1].test_rows
+            test_percentage = (100.0 * i[1].test_rows / total_rows) if total_rows > 0 else 0.0
+
             name_json = '\t\t\t\t"name": "' + i[0] + '",\n'
             email_json = '\t\t\t\t"email": "' + author_email + '",\n'
             gravatar_json = '\t\t\t\t"gravatar": "' + gravatar.get_url(author_email) + '",\n'
             rows_json = '\t\t\t\t"rows": ' + str(i[1].rows) + ",\n"
+            main_rows_json = '\t\t\t\t"main_rows": ' + str(i[1].main_rows) + ",\n"
+            test_rows_json = '\t\t\t\t"test_rows": ' + str(i[1].test_rows) + ",\n"
+            test_percentage_json = '\t\t\t\t"test_percentage": ' + "{0:.1f}".format(test_percentage) + ",\n"
             stability_json = (
                 '\t\t\t\t"stability": ' + "{0:.1f}".format(Blame.get_stability(i[0], i[1].rows, self.changes)) + ",\n"
             )
@@ -124,6 +135,9 @@ class BlameOutput(Outputable):
                 + email_json
                 + gravatar_json
                 + rows_json
+                + main_rows_json
+                + test_rows_json
+                + test_percentage_json
                 + stability_json
                 + age_json
                 + percentage_in_comments_json
@@ -141,15 +155,23 @@ class BlameOutput(Outputable):
         print(textwrap.fill(_(BLAME_INFO_TEXT) + ":", width=terminal.get_size()[0]) + "\n")
         terminal.printb(
             terminal.ljust(_("Author"), 21)
-            + terminal.rjust(_("Rows"), 10)
+            + terminal.rjust(_("Main"), 8)
+            + terminal.rjust(_("Test"), 8)
+            + terminal.rjust(_("Test %"), 9)
             + terminal.rjust(_("Stability"), 15)
             + terminal.rjust(_("Age"), 13)
             + terminal.rjust(_("% in comments"), 20)
         )
 
         for i in sorted(self.blame.get_summed_blames().items()):
+            # Calculate test percentage
+            total_rows = i[1].main_rows + i[1].test_rows
+            test_percentage = (100.0 * i[1].test_rows / total_rows) if total_rows > 0 else 0.0
+
             print(terminal.ljust(i[0], 20)[0 : 20 - terminal.get_excess_column_count(i[0])], end=" ")
-            print(str(i[1].rows).rjust(10), end=" ")
+            print(str(i[1].main_rows).rjust(7), end=" ")
+            print(str(i[1].test_rows).rjust(7), end=" ")
+            print("{0:.1f}".format(test_percentage).rjust(8), end=" ")
             print("{0:.1f}".format(Blame.get_stability(i[0], i[1].rows, self.changes)).rjust(14), end=" ")
             print("{0:.1f}".format(float(i[1].skew) / i[1].rows).rjust(12), end=" ")
             print("{0:.2f}".format(100.0 * i[1].comments / i[1].rows).rjust(19))
@@ -164,7 +186,16 @@ class BlameOutput(Outputable):
             name_xml = "\t\t\t\t<name>" + i[0] + "</name>\n"
             email_xml = "\t\t\t\t<email>" + author_email + "</email>\n"
             gravatar_xml = "\t\t\t\t<gravatar>" + gravatar.get_url(author_email) + "</gravatar>\n"
+            # Calculate test percentage
+            total_rows = i[1].main_rows + i[1].test_rows
+            test_percentage = (100.0 * i[1].test_rows / total_rows) if total_rows > 0 else 0.0
+
             rows_xml = "\t\t\t\t<rows>" + str(i[1].rows) + "</rows>\n"
+            main_rows_xml = "\t\t\t\t<main-rows>" + str(i[1].main_rows) + "</main-rows>\n"
+            test_rows_xml = "\t\t\t\t<test-rows>" + str(i[1].test_rows) + "</test-rows>\n"
+            test_percentage_xml = (
+                "\t\t\t\t<test-percentage>" + "{0:.1f}".format(test_percentage) + "</test-percentage>\n"
+            )
             stability_xml = (
                 "\t\t\t\t<stability>"
                 + "{0:.1f}".format(Blame.get_stability(i[0], i[1].rows, self.changes))
@@ -182,6 +213,9 @@ class BlameOutput(Outputable):
                 + email_xml
                 + gravatar_xml
                 + rows_xml
+                + main_rows_xml
+                + test_rows_xml
+                + test_percentage_xml
                 + stability_xml
                 + age_xml
                 + percentage_in_comments_xml
