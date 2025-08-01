@@ -125,9 +125,11 @@ class BlameOutput(Outputable):
             stability_json = (
                 '\t\t\t\t"stability": ' + "{0:.1f}".format(Blame.get_stability(i[0], i[1].rows, self.changes)) + ",\n"
             )
-            age_json = '\t\t\t\t"age": ' + "{0:.1f}".format(float(i[1].skew) / i[1].rows) + ",\n"
+            age = (float(i[1].skew) / i[1].rows) if i[1].rows > 0 else 0.0
+            age_json = '\t\t\t\t"age": ' + "{0:.1f}".format(age) + ",\n"
+            comment_percentage = (100.0 * i[1].comments / i[1].rows) if i[1].rows > 0 else 0.0
             percentage_in_comments_json = (
-                '\t\t\t\t"percentage_in_comments": ' + "{0:.2f}".format(100.0 * i[1].comments / i[1].rows) + "\n"
+                '\t\t\t\t"percentage_in_comments": ' + "{0:.2f}".format(comment_percentage) + "\n"
             )
             blame_json += (
                 "{\n"
@@ -173,8 +175,10 @@ class BlameOutput(Outputable):
             print(str(i[1].test_rows).rjust(7), end=" ")
             print("{0:.1f}".format(test_percentage).rjust(8), end=" ")
             print("{0:.1f}".format(Blame.get_stability(i[0], i[1].rows, self.changes)).rjust(14), end=" ")
-            print("{0:.1f}".format(float(i[1].skew) / i[1].rows).rjust(12), end=" ")
-            print("{0:.2f}".format(100.0 * i[1].comments / i[1].rows).rjust(19))
+            age = (float(i[1].skew) / i[1].rows) if i[1].rows > 0 else 0.0
+            print("{0:.1f}".format(age).rjust(12), end=" ")
+            comment_percentage = (100.0 * i[1].comments / i[1].rows) if i[1].rows > 0 else 0.0
+            print("{0:.2f}".format(comment_percentage).rjust(19))
 
     def output_xml(self):
         message_xml = "\t\t<message>" + _(BLAME_INFO_TEXT) + "</message>\n"
@@ -201,10 +205,12 @@ class BlameOutput(Outputable):
                 + "{0:.1f}".format(Blame.get_stability(i[0], i[1].rows, self.changes))
                 + "</stability>\n"
             )
-            age_xml = "\t\t\t\t<age>" + "{0:.1f}".format(float(i[1].skew) / i[1].rows) + "</age>\n"
+            age = (float(i[1].skew) / i[1].rows) if i[1].rows > 0 else 0.0
+            age_xml = "\t\t\t\t<age>" + "{0:.1f}".format(age) + "</age>\n"
+            comment_percentage = (100.0 * i[1].comments / i[1].rows) if i[1].rows > 0 else 0.0
             percentage_in_comments_xml = (
                 "\t\t\t\t<percentage-in-comments>"
-                + "{0:.2f}".format(100.0 * i[1].comments / i[1].rows)
+                + "{0:.2f}".format(comment_percentage)
                 + "</percentage-in-comments>\n"
             )
             blame_xml += (
