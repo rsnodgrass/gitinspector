@@ -58,7 +58,7 @@ Boolean arguments can only be given to long options.
                                    most responsible for
       --since=DATE               only show statistics for commits more recent
                                    than a specific date
-      --team-config=FILE         path to YAML file containing team member names;
+      --team-config=FILE         path to JSON file containing team member names;
                                    only statistics for these team members will
                                    be included in the output
   -T, --timeline[=BOOL]          show commit timeline, including author names

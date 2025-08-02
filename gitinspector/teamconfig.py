@@ -18,14 +18,7 @@
 # along with gitinspector. If not, see <http://www.gnu.org/licenses/>.
 
 import os
-from . import localization
-
-try:
-    import yaml
-except ImportError:
-    print("Warning: PyYAML not found. Team filtering requires PyYAML to be installed.")
-    print("Install with: pip install PyYAML")
-    yaml = None
+import json
 
 # Global variable to store team members
 __team_members__ = set()
@@ -39,35 +32,32 @@ class TeamConfigError(Exception):
 
 
 def load_team_config(config_file_path):
-    """Load team configuration from YAML file"""
+    """Load team configuration from JSON file"""
     global __team_members__, __team_config_loaded__
 
-    if yaml is None:
-        raise TeamConfigError(_("PyYAML is required for team filtering. Install with: pip install PyYAML"))
-
     if not os.path.exists(config_file_path):
-        raise TeamConfigError(_("Team config file not found: {0}").format(config_file_path))
+        raise TeamConfigError("Team config file not found: {0}".format(config_file_path))
 
     try:
         with open(config_file_path, "r", encoding="utf-8") as file:
-            config = yaml.safe_load(file)
+            config = json.load(file)
 
         if not config or "team" not in config:
-            raise TeamConfigError(_("Invalid team config: 'team' key not found in {0}").format(config_file_path))
+            raise TeamConfigError("Invalid team config: 'team' key not found in {0}".format(config_file_path))
 
         if not isinstance(config["team"], list):
-            raise TeamConfigError(_("Invalid team config: 'team' must be a list in {0}").format(config_file_path))
+            raise TeamConfigError("Invalid team config: 'team' must be a list in {0}".format(config_file_path))
 
         # Store team members in global set for fast lookup
         __team_members__ = set(config["team"])
         __team_config_loaded__ = True
 
-        print(_("Loaded team config with {0} members from {1}").format(len(__team_members__), config_file_path))
+        print("Loaded team config with {0} members from {1}".format(len(__team_members__), config_file_path))
 
-    except yaml.YAMLError as e:
-        raise TeamConfigError(_("Error parsing YAML file {0}: {1}").format(config_file_path, str(e)))
+    except json.JSONDecodeError as e:
+        raise TeamConfigError("Error parsing JSON file {0}: {1}".format(config_file_path, str(e)))
     except Exception as e:
-        raise TeamConfigError(_("Error loading team config {0}: {1}").format(config_file_path, str(e)))
+        raise TeamConfigError("Error loading team config {0}: {1}".format(config_file_path, str(e)))
 
 
 def is_team_member(author_name):
