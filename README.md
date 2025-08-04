@@ -71,7 +71,7 @@ python gitinspector.py \
   --team-config team_config.json \
   -r -m -T -w \
   -f "**" \
-  ../otter-web/ > analysis_report.html
+  ../my-repository/ > analysis_report.html
 ```
 
 **What this command does:**
@@ -82,7 +82,7 @@ python gitinspector.py \
 - `-T` - Generate timeline analysis
 - `-w` - Show results in weeks instead of months
 - `-f "**"` - Include all file types in analysis
-- `../otter-web/` - Path to the repository to analyze
+- `../my-repository/` - Path to the repository to analyze
 - `> analysis_report.html` - Save output to HTML file
 
 ### Output Formats
