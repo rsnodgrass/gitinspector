@@ -67,11 +67,12 @@ Here's a complete example that generates a full analysis report:
 
 ```bash
 python gitinspector.py \
+  -F html \
   --since 2025-07-01 \
   --team-config team_config.json \
   -r -m -T -w \
   -f "**" \
-  ../my-repository/ > analysis_report.html
+  ../my-repositoyr-parent-directory/my-repository/ > analysis_report.html
 ```
 
 **What this command does:**
@@ -81,6 +82,7 @@ python gitinspector.py \
 - `-m` - Include code metrics and violation reports
 - `-T` - Generate timeline analysis
 - `-w` - Show results in weeks instead of months
+- `-F` - output file type
 - `-f "**"` - Include all file types in analysis
 - `../my-repository/` - Path to the repository to analyze
 - `> analysis_report.html` - Save output to HTML file
