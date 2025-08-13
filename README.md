@@ -43,8 +43,46 @@ python gitinspector.py .
 # Analyze a specific repository
 python gitinspector.py /path/to/your/repo
 
+# 🌟 Analyze multiple repositories (aggregated statistics)
+python gitinspector.py /path/to/repo1 /path/to/repo2 /path/to/repo3
+
 # Get help with all available options
 python gitinspector.py --help
+```
+
+### Multi-Repository Analysis
+gitinspector supports analyzing multiple repositories simultaneously, providing aggregated statistics across all repositories. This is perfect for teams working across multiple codebases:
+
+```bash
+# Analyze multiple local repositories
+python gitinspector.py ~/projects/frontend ~/projects/backend ~/projects/mobile
+
+# Mix local and remote repositories
+python gitinspector.py \
+  /local/repo \
+  https://github.com/team/repo1.git \
+  https://github.com/team/repo2.git
+
+# Full team analysis across multiple repositories
+python gitinspector.py \
+  -F html \
+  --since 2024-01-01 \
+  --team-config team_config.json \
+  -r -m -T -w \
+  /path/to/frontend-repo \
+  /path/to/backend-repo > team_report.html
+```
+
+**Progress Tracking**: When analyzing multiple repositories, gitinspector shows clear progress indicators:
+```
+Processing repository 1 of 3: frontend-repo
+[repo-specific progress bars for analysis phases]
+✓ Completed repository 1 of 3: frontend-repo
+
+Processing repository 2 of 3: backend-repo
+[repo-specific progress bars for analysis phases]
+✓ Completed repository 2 of 3: backend-repo
+...
 ```
 
 ### Team Configuration (Optional)
