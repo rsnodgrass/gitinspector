@@ -78,11 +78,11 @@ class Runner(object):
 
         for repo_index, repo in enumerate(repos, 1):
             # Show high-level repository progress for multiple repositories
-            if len(repos) > 1 and sys.stdout.isatty() and format.is_interactive_format():
+            if len(repos) > 1 and sys.stderr.isatty():
                 repo_name = repo.name or os.path.basename(repo.location)
                 progress_message = "Processing repository {} of {}: {}".format(repo_index, len(repos), repo_name)
-                print("\r{}\r{}".format(" " * terminal.get_size()[0], progress_message))
-                sys.stdout.flush()
+                print("\r{}\r{}".format(" " * terminal.get_size()[0], progress_message), file=sys.stderr)
+                sys.stderr.flush()
 
             os.chdir(repo.location)
             repo = repo if len(repos) > 1 else None
@@ -94,11 +94,11 @@ class Runner(object):
                 summed_metrics += MetricsLogic()
 
             # Show completion for each repository when analyzing multiple
-            if len(repos) > 1 and sys.stdout.isatty() and format.is_interactive_format():
+            if len(repos) > 1 and sys.stderr.isatty():
                 repo_name = repo.name or os.path.basename(repo.location)
                 completion_message = "✓ Completed repository {} of {}: {}".format(repo_index, len(repos), repo_name)
-                print("\r{}\r{}".format(" " * terminal.get_size()[0], completion_message))
-                sys.stdout.flush()
+                print("\r{}\r{}".format(" " * terminal.get_size()[0], completion_message), file=sys.stderr)
+                sys.stderr.flush()
 
             if sys.stdout.isatty() and format.is_interactive_format():
                 terminal.clear_row()
