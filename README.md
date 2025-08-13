@@ -73,17 +73,22 @@ python gitinspector.py \
   /path/to/backend-repo > team_report.html
 ```
 
-**Progress Tracking**: When analyzing multiple repositories, gitinspector shows clear progress indicators:
+**Dynamic Progress Tracking**: When analyzing multiple repositories, gitinspector shows beautiful real-time progress indicators:
 ```
-Processing repository 1 of 3: frontend-repo
-[repo-specific progress bars for analysis phases]
-✓ Completed repository 1 of 3: frontend-repo
+Repository 1/3: frontend-repo [████████▓░░░░░░░░░░░░░░░░]  45% - Analyzing commits...
+Repository 1/3: frontend-repo [████████████████▓░░░░░░░]  78% - Analyzing file ownership...
+Repository 1/3: frontend-repo [█████████████████████████] 100% ✓ Completed
 
-Processing repository 2 of 3: backend-repo
-[repo-specific progress bars for analysis phases]
-✓ Completed repository 2 of 3: backend-repo
+Repository 2/3: backend-repo [██████▓░░░░░░░░░░░░░░░░░░]  32% - Analyzing commits...
+Repository 2/3: backend-repo [█████████████████████████] 100% ✓ Completed
 ...
 ```
+
+The progress bars work with all output formats and show:
+- Real-time percentage completion per repository
+- Current analysis phase (commits, file ownership, metrics)
+- Visual progress bar with modern Unicode characters
+- Proper handling of long repository names
 
 ### Team Configuration (Optional)
 To filter analysis to specific team members, create a JSON configuration file:

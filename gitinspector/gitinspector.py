@@ -63,6 +63,53 @@ class Runner(object):
         self.timeline = False
         self.useweeks = False
 
+    def _show_repo_progress(self, current_repo, total_repos, repo_name, progress_percent, status=""):
+        """Show dynamic progress bar for repository processing"""
+        # Create progress bar with better visual appeal
+        bar_width = 25
+        filled_width = int(bar_width * progress_percent / 100)
+
+        # Use different characters for a more modern look
+        if progress_percent == 100:
+            bar = "█" * bar_width  # Solid bar when complete
+        else:
+            bar = (
+                "█" * filled_width
+                + "▓" * min(1, bar_width - filled_width)
+                + "░" * max(0, bar_width - filled_width - 1)
+            )
+
+        # Format the progress message with better spacing
+        repo_info = "Repository {}/{}: {}".format(current_repo, total_repos, repo_name)
+        progress_info = "[{}] {:3d}%".format(bar, progress_percent)
+
+        if status:
+            if progress_percent == 100:
+                message = "{} {} {}".format(repo_info, progress_info, status)
+            else:
+                message = "{} {} - {}".format(repo_info, progress_info, status)
+        else:
+            message = "{} {}".format(repo_info, progress_info)
+
+        # Clear line and show progress (ensure it fits terminal width)
+        terminal_width = terminal.get_size()[0]
+        if len(message) > terminal_width - 1:
+            # Truncate repo name if message is too long
+            max_repo_name_len = max(10, terminal_width - 50)  # Reserve space for progress bar
+            if len(repo_name) > max_repo_name_len:
+                truncated_repo_name = repo_name[: max_repo_name_len - 3] + "..."
+                repo_info = "Repository {}/{}: {}".format(current_repo, total_repos, truncated_repo_name)
+                if status:
+                    if progress_percent == 100:
+                        message = "{} {} {}".format(repo_info, progress_info, status)
+                    else:
+                        message = "{} {} - {}".format(repo_info, progress_info, status)
+                else:
+                    message = "{} {}".format(repo_info, progress_info)
+
+        print("\r{}\r{}".format(" " * terminal_width, message), end="", file=sys.stderr)
+        sys.stderr.flush()
+
     def process(self, repos):
         localization.check_compatibility(version.__version__)
 
@@ -77,28 +124,36 @@ class Runner(object):
         summed_metrics = MetricsLogic.__new__(MetricsLogic)
 
         for repo_index, repo in enumerate(repos, 1):
-            # Show high-level repository progress for multiple repositories
+            repo_name = repo.name or os.path.basename(repo.location)
+
+            # Show repository progress for multiple repositories
             if len(repos) > 1 and sys.stderr.isatty():
-                repo_name = repo.name or os.path.basename(repo.location)
-                progress_message = "Processing repository {} of {}: {}".format(repo_index, len(repos), repo_name)
-                print("\r{}\r{}".format(" " * terminal.get_size()[0], progress_message), file=sys.stderr)
-                sys.stderr.flush()
+                self._show_repo_progress(repo_index, len(repos), repo_name, 0)
 
             os.chdir(repo.location)
             repo = repo if len(repos) > 1 else None
+
+            # Step 1: Changes analysis (0-50%)
+            if len(repos) > 1 and sys.stderr.isatty():
+                self._show_repo_progress(repo_index, len(repos), repo_name, 10, "Analyzing commits...")
             changes = Changes(repo, self.hard)
+
+            # Step 2: Blame analysis (50-90%)
+            if len(repos) > 1 and sys.stderr.isatty():
+                self._show_repo_progress(repo_index, len(repos), repo_name, 50, "Analyzing file ownership...")
             summed_blames += Blame(repo, self.hard, self.useweeks, changes)
             summed_changes += changes
 
+            # Step 3: Metrics analysis (90-95%)
             if self.include_metrics:
+                if len(repos) > 1 and sys.stderr.isatty():
+                    self._show_repo_progress(repo_index, len(repos), repo_name, 90, "Calculating metrics...")
                 summed_metrics += MetricsLogic()
 
-            # Show completion for each repository when analyzing multiple
+            # Show completion
             if len(repos) > 1 and sys.stderr.isatty():
-                repo_name = repo.name or os.path.basename(repo.location)
-                completion_message = "✓ Completed repository {} of {}: {}".format(repo_index, len(repos), repo_name)
-                print("\r{}\r{}".format(" " * terminal.get_size()[0], completion_message), file=sys.stderr)
-                sys.stderr.flush()
+                self._show_repo_progress(repo_index, len(repos), repo_name, 100, "✓ Completed")
+                print(file=sys.stderr)  # Add newline after completion
 
             if sys.stdout.isatty() and format.is_interactive_format():
                 terminal.clear_row()
