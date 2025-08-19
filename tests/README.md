@@ -38,10 +38,29 @@ source venv/bin/activate
 pip install pytest
 ```
 
+### Quick Test Setup
+```bash
+# Create test repositories (one-time setup)
+cd tests
+python create_simple_test_repos.py
+
+# Run comprehensive test suite
+python test_runner.py
+```
+
 ### Run All Tests
 ```bash
 cd tests
 pytest -v
+```
+
+### Run Activity Feature Tests
+```bash
+# Run unit tests for activity feature only
+python -m unittest tests.test_activity -v
+
+# Run integration tests with real repositories
+python test_runner.py
 ```
 
 ### Run Specific Test Files
@@ -68,9 +87,48 @@ pytest test_blame_categorization.py::TestPercentageCalculation -v
 pytest test_blame_output.py::TestBlameOutput -v
 ```
 
+## Test Infrastructure
+
+### Test Repositories
+
+The test suite includes **5 permanent test repositories** designed for comprehensive testing:
+
+🏢 **`team_growth_repo`** - Simulates team growth over time
+- Month 1: 1 developer (Founder Dev)
+- Month 2: 2 developers (+ Developer 2) 
+- Month 3: 4 developers (+ Backend Dev, Frontend Dev)
+- Perfect for testing normalization features
+
+👤 **`solo_productive_repo`** - High-productivity solo developer
+- Consistent weekly commits over 3 months
+- 5 commits with progressive feature development
+- Tests individual productivity patterns
+
+📊 **`seasonal_activity_repo`** - Seasonal development patterns
+- Q1: High activity (4 commits)
+- Q2: Low activity (sparse commits)
+- Q4: Release push (2 commits)
+- Tests time-based analysis
+
+🎨 **`mixed_project_repo`** - Multiple file types and test files
+- Python, JavaScript, HTML, CSS files
+- Both main code and test files
+- Tests file categorization and blame analysis
+
+🏛️ **`legacy_maintenance_repo`** - Legacy system maintenance
+- Initial commit from 2020
+- Sparse maintenance commits over years
+- Tests long-term repository analysis
+
+### Test Helper Classes
+
+**`GitTestRepo`** - Context manager for temporary repositories
+**`ActivityTestScenarios`** - Pre-defined test scenarios
+**`GitInspectorTestCase`** - Base test case with common utilities
+
 ## Test Coverage
 
-The test suite includes **73 test cases** covering:
+The test suite includes **100+ test cases** covering:
 
 ✅ **Test File Detection** (51 tests)
 - Directory-based detection (`test/`, `tests/`, `__tests__/`, etc.)
@@ -99,6 +157,22 @@ The test suite includes **73 test cases** covering:
 - New column/field integration
 - Zero division handling in output
 
+✅ **Activity Feature Testing** (25+ tests)
+- ActivityData initialization and data collection
+- Contributor tracking per repository per period
+- Normalization calculations (per-contributor metrics)
+- Weekly vs monthly time period handling
+- All output formats (text, HTML) with normalization
+- Multi-repository activity analysis
+- Seasonal activity pattern detection
+- Integration testing with real git repositories
+
+✅ **Test Infrastructure** (5 repositories)
+- Permanent test repositories for consistent testing
+- Repository creation and validation utilities
+- Performance testing with multiple repositories
+- Integration testing scenarios
+
 ## Bug Fixes Included
 
 The test development also identified and fixed:
@@ -116,3 +190,68 @@ The test detection uses multiple strategies:
 4. **Case Insensitive**: All detection is case-insensitive for robustness
 
 This approach ensures comprehensive detection of test files across different project structures and naming conventions.
+
+## Activity Feature Testing
+
+### Unit Tests (`test_activity.py`)
+
+**Core Functionality Tests:**
+- `TestActivityData` - Data collection and initialization
+- `TestActivityNormalization` - Contributor counting and normalization
+- `TestActivityOutput` - All output formats (text, HTML)
+- `TestActivityIntegration` - End-to-end workflows
+
+### Integration Tests (`test_runner.py`)
+
+**Real Repository Tests:**
+- Single repository analysis
+- Multi-repository analysis  
+- Normalized vs raw statistics comparison
+- Weekly vs monthly granularity
+- HTML output generation
+- Performance testing with all 5 repositories
+
+### Activity Testing Examples
+
+```bash
+# Test basic activity functionality
+cd tests
+python -m unittest test_activity.TestActivityData.test_single_repository_activity -v
+
+# Test normalization features
+python -m unittest test_activity.TestActivityNormalization -v
+
+# Test all output formats
+python -m unittest test_activity.TestActivityOutput -v
+
+# Run comprehensive activity test suite
+python -m unittest test_activity -v
+
+# Integration tests with real repositories
+python test_runner.py
+```
+
+### Creating New Activity Tests
+
+When adding new activity features:
+
+1. **Add unit tests** in `test_activity.py`
+2. **Use test repositories** from `test_repositories/`
+3. **Test both raw and normalized** output
+4. **Test all output formats** (text, HTML, JSON, XML)
+5. **Add integration scenarios** to `test_runner.py`
+
+Example test pattern:
+```python
+def test_new_feature(self):
+    with GitTestRepo("test_repo") as repo:
+        ActivityTestScenarios.create_multi_developer_repo(repo)
+        changes_obj = changes.Changes(None, hard=True)
+        changes_by_repo = {"test_repo": changes_obj}
+        
+        activity_data = activity.ActivityData(changes_by_repo, useweeks=False)
+        
+        # Test your new feature
+        result = activity_data.new_feature()
+        self.assertEqual(expected_value, result)
+```
