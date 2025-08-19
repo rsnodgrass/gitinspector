@@ -19,6 +19,7 @@
 
 
 import datetime
+from . import filtering
 
 
 class ActivityData(object):
@@ -43,6 +44,11 @@ class ActivityData(object):
             # Aggregate data by time period
             for date_author_info, author_stats in authordateinfo_list:
                 date_str, author = date_author_info
+                
+                # Apply team filtering - skip authors not in team config
+                if filtering.is_author_team_filtered(author):
+                    continue
+                
                 period = self._get_period_from_date(date_str)
                 self.all_periods.add(period)
                 
