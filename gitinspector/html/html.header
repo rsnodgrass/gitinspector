@@ -219,9 +219,28 @@
 					}}
 				}});
 
+				// Chart-specific collapsible functionality
+				$('.chart-collapsible-header').click(function() {{
+					var targetId = $(this).data('target');
+					var content = $('#' + targetId);
+					var icon = $(this).find('.chart-collapse-icon');
+					
+					if (content.is(':visible')) {{
+						content.slideUp(300);
+						icon.text('▶');
+						$(this).removeClass('expanded');
+					}} else {{
+						content.slideDown(300);
+						icon.text('▼');
+						$(this).addClass('expanded');
+					}}
+				}});
+
 				// Initialize all sections as collapsed by default
 				$('.collapsible-content').hide();
 				$('.collapse-icon').text('▶');
+				$('.chart-collapsible-content').hide();
+				$('.chart-collapse-icon').text('▶');
 			}});
 		</script>
 		<style type="text/css">
@@ -435,6 +454,56 @@
 				border-radius: 0;
 				box-shadow: none;
 				-moz-box-shadow: none;
+			}}
+			
+			/* Chart-specific collapsible styles */
+			.chart-collapsible-header {{
+				cursor: pointer;
+				user-select: none;
+				-webkit-user-select: none;
+				-moz-user-select: none;
+				-ms-user-select: none;
+				background-color: #e8dede;
+				border: 1px solid #ccc;
+				border-radius: 6px;
+				margin: 10px 0;
+				padding: 12px 15px;
+				font-weight: bold;
+				font-size: 1.0em;
+				transition: background-color 0.3s ease;
+				position: relative;
+			}}
+			
+			.chart-collapsible-header:hover {{
+				background-color: #ede2e2;
+				border-color: #aaa;
+			}}
+			
+			.chart-collapsible-header.expanded {{
+				background-color: #f0e5e5;
+				border-bottom-left-radius: 0;
+				border-bottom-right-radius: 0;
+				border-bottom: 1px solid #ccc;
+			}}
+			
+			.chart-collapse-icon {{
+				position: absolute;
+				right: 15px;
+				top: 50%;
+				transform: translateY(-50%);
+				font-size: 1.1em;
+				color: #666;
+				transition: transform 0.3s ease;
+			}}
+			
+			.chart-collapsible-content {{
+				border: 1px solid #ccc;
+				border-top: none;
+				border-radius: 0 0 6px 6px;
+				margin: 0 0 10px 0;
+				padding: 15px;
+				background-color: #fafafa;
+				overflow: hidden;
 			}}
 		</style>
 	</head>

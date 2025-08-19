@@ -251,8 +251,15 @@ class ActivityOutput(Outputable):
             if max_val == 0:
                 continue
                 
+            chart_id = f"{metric.replace('_', '-')}-chart"
+            
+            # Make each chart individually collapsible
+            print(f'<div class="chart-collapsible-header" data-target="{chart_id}">')
+            print(f'    {title} by Repository')
+            print(f'    <span class="chart-collapse-icon">▶</span>')
+            print(f'</div>')
+            print(f'<div id="{chart_id}" class="chart-collapsible-content" style="display: none;">')
             print(f'<div class="activity-chart">')
-            print(f'<h5>{title} by Repository</h5>')
             print('<div class="chart-container">')
             
             # Chart data and styling
@@ -321,6 +328,7 @@ class ActivityOutput(Outputable):
             
             print('</div>')  # chart-container
             print('</div>')  # activity-chart
+            print('</div>')  # chart-collapsible-content
         
         # Summary table
         print('<h5>Summary Statistics</h5>')

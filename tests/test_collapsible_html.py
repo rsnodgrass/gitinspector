@@ -262,6 +262,88 @@ class TestCollapsibleIntegration(GitInspectorTestCase):
         # Count collapsible content divs (should be 3)
         content_count = html_output.count('collapsible-content')
         self.assertEqual(content_count, 3)
+
+
+class TestChartCollapsibleHTML(GitInspectorTestCase):
+    """Test chart-specific collapsible functionality within activity output."""
+    
+    @patch('gitinspector.format.get_selected')
+    def test_activity_chart_collapsibility(self, mock_format):
+        """Test that individual activity charts are collapsible."""
+        mock_format.return_value = 'html'
+        
+        # Mock activity data for testing
+        class MockActivityData:
+            def __init__(self):
+                self.useweeks = False
+            
+            def get_repositories(self):
+                return ['repo1', 'repo2']
+            
+            def get_periods(self):
+                return ['2024-01', '2024-02']
+            
+            def get_max_values(self, normalized=False):
+                return {'commits': 10, 'insertions': 100, 'deletions': 50}
+            
+            def get_repo_stats_for_period(self, repo, period, normalized=False):
+                return {'commits': 5, 'insertions': 50, 'deletions': 25}
+        
+        # Capture stdout
+        old_stdout = sys.stdout
+        sys.stdout = StringIO()
+        
+        try:
+            # Create ActivityOutput with mock data
+            from gitinspector.output.activityoutput import ActivityOutput
+            activity_output = ActivityOutput(MockActivityData(), normalize=False, show_both=False)
+            activity_output.output_html()
+            
+            html_output = sys.stdout.getvalue()
+            
+        finally:
+            sys.stdout = old_stdout
+        
+        # Verify chart-specific collapsible structure
+        self.assertIn('chart-collapsible-header', html_output)
+        self.assertIn('chart-collapsible-content', html_output)
+        self.assertIn('chart-collapse-icon', html_output)
+        self.assertIn('data-target="commits-chart"', html_output)
+        self.assertIn('data-target="insertions-chart"', html_output)
+        
+        # Verify individual chart titles
+        self.assertIn('Commits by Repository', html_output)
+        self.assertIn('Lines Added by Repository', html_output)
+        self.assertIn('Lines Deleted by Repository', html_output)
+    
+    def test_chart_collapsible_css_classes(self):
+        """Test that chart-specific CSS classes are defined."""
+        # Read the HTML header file
+        header_path = os.path.join(os.path.dirname(__file__), '..', 'gitinspector', 'html', 'html.header')
+        with open(header_path, 'r') as f:
+            header_content = f.read()
+        
+        # Check for chart-specific CSS classes
+        required_chart_classes = [
+            '.chart-collapsible-header',
+            '.chart-collapsible-content',
+            '.chart-collapse-icon',
+            '.chart-collapsible-header:hover',
+            '.chart-collapsible-header.expanded'
+        ]
+        
+        for css_class in required_chart_classes:
+            self.assertIn(css_class, header_content, f"Chart CSS class {css_class} not found in header")
+        
+        # Check for chart-specific JavaScript functionality
+        required_chart_js = [
+            "chart-collapsible-header').click",
+            "data('target')",
+            "chart-collapse-icon"
+        ]
+        
+        for js_snippet in required_chart_js:
+            self.assertIn(js_snippet, header_content, f"Chart JavaScript snippet {js_snippet} not found in header")
     
     def test_collapsible_preserves_functionality(self):
         """Test that collapsible wrapper doesn't break existing functionality."""
