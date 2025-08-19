@@ -90,6 +90,36 @@ The progress bars work with all output formats and show:
 - Visual progress bar with modern Unicode characters
 - Proper handling of long repository names
 
+### Repository Activity Statistics
+
+The `--activity` / `-A` parameter provides powerful insights into repository development patterns over time:
+
+```bash
+# Show monthly activity statistics across repositories
+python gitinspector.py -A repo1 repo2 repo3
+
+# Show weekly activity with HTML bar charts
+python gitinspector.py -A -w -F html repo1 repo2 repo3 > activity_report.html
+
+# Combine with other analysis options
+python gitinspector.py -A -F html --since 2024-01-01 \
+  --team-config team_config.json \
+  frontend-repo backend-repo mobile-repo > team_activity.html
+```
+
+**Features:**
+- **Time-based Analysis**: Monthly or weekly breakdowns (`-w` for weeks)
+- **Repository Comparison**: Side-by-side activity comparison
+- **Multiple Metrics**: Commits, line insertions, and deletions per repository
+- **Beautiful Charts**: HTML output includes interactive bar graphs
+- **All Formats**: Text, HTML, JSON, and XML output supported
+
+**HTML Output Includes:**
+- Color-coded bar charts for each metric (commits, insertions, deletions)
+- Period-by-period visualization (e.g., 2024-01, 2024-02, etc.)
+- Summary statistics table with repository totals
+- Responsive design with modern styling
+
 ### Team Configuration (Optional)
 To filter analysis to specific team members, create a JSON configuration file:
 
