@@ -65,6 +65,7 @@ class Runner(object):
         self.timeline = False
         self.useweeks = False
         self.activity = False
+        self.activity_normalize = False
 
     def _show_repo_progress(self, current_repo, total_repos, repo_name, progress_percent, status=""):
         """Show dynamic progress bar for repository processing"""
@@ -147,7 +148,7 @@ class Runner(object):
                 self._show_repo_progress(repo_index, len(repos), repo_name, 50, "Analyzing file ownership...")
             summed_blames += Blame(repo, self.hard, self.useweeks, changes)
             summed_changes += changes
-            
+
             # Store changes by repository for activity analysis
             if self.activity:
                 changes_by_repo[repo_name] = changes
@@ -190,7 +191,7 @@ class Runner(object):
 
             if self.activity and changes_by_repo:
                 activity_data = activity.ActivityData(changes_by_repo, self.useweeks)
-                outputable.output(ActivityOutput(activity_data))
+                outputable.output(ActivityOutput(activity_data, self.activity_normalize))
 
         format.output_footer()
         os.chdir(previous_directory)
@@ -250,6 +251,7 @@ def main():
                 "version",
                 "weeks:true",
                 "activity:true",
+                "activity-normalize:true",
             ],
         )
         repos = __get_validated_git_repos__(set(args))
@@ -321,6 +323,8 @@ def main():
                 run.activity = True
             elif o == "--activity":
                 run.activity = optval.get_boolean_argument(a)
+            elif o == "--activity-normalize":
+                run.activity_normalize = optval.get_boolean_argument(a)
             elif o in ("-x", "--exclude"):
                 if clear_x_on_next_pass:
                     clear_x_on_next_pass = False

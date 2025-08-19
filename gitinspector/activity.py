@@ -32,7 +32,7 @@ class ActivityData(object):
         """
         self.changes_by_repo = changes_by_repo
         self.useweeks = useweeks
-        self.repo_activity = {}  # {repo_name: {period: {commits, insertions, deletions}}}
+        self.repo_activity = {}  # {repo_name: {period: {commits, insertions, deletions, contributors, authors}}}
         self.all_periods = set()
         
         # Process each repository's data
@@ -50,13 +50,17 @@ class ActivityData(object):
                     self.repo_activity[repo_name][period] = {
                         'commits': 0,
                         'insertions': 0,
-                        'deletions': 0
+                        'deletions': 0,
+                        'contributors': set(),  # Track unique contributors per period
+                        'authors': set()  # For debugging/validation
                     }
                 
                 # Add to repository totals for this period
                 self.repo_activity[repo_name][period]['commits'] += 1
                 self.repo_activity[repo_name][period]['insertions'] += author_stats.insertions
                 self.repo_activity[repo_name][period]['deletions'] += author_stats.deletions
+                self.repo_activity[repo_name][period]['contributors'].add(author)
+                self.repo_activity[repo_name][period]['authors'].add(author)
         
         self.all_periods = sorted(list(self.all_periods))
     
@@ -82,48 +86,100 @@ class ActivityData(object):
         """Get sorted list of all time periods"""
         return self.all_periods
     
-    def get_repo_stats_for_period(self, repo_name, period):
+    def get_repo_stats_for_period(self, repo_name, period, normalized=False):
         """Get statistics for a specific repository and period"""
-        return self.repo_activity.get(repo_name, {}).get(period, {
+        raw_stats = self.repo_activity.get(repo_name, {}).get(period, {
             'commits': 0,
             'insertions': 0,
-            'deletions': 0
+            'deletions': 0,
+            'contributors': set(),
+            'authors': set()
         })
+        
+        # Convert sets to counts and prepare return data
+        stats = {
+            'commits': raw_stats['commits'],
+            'insertions': raw_stats['insertions'],
+            'deletions': raw_stats['deletions'],
+            'contributors': len(raw_stats['contributors']),
+            'authors': len(raw_stats['authors'])
+        }
+        
+        # Apply normalization if requested
+        if normalized and stats['contributors'] > 0:
+            stats['commits_per_contributor'] = round(stats['commits'] / stats['contributors'], 2)
+            stats['insertions_per_contributor'] = round(stats['insertions'] / stats['contributors'], 2)
+            stats['deletions_per_contributor'] = round(stats['deletions'] / stats['contributors'], 2)
+        else:
+            stats['commits_per_contributor'] = 0
+            stats['insertions_per_contributor'] = 0
+            stats['deletions_per_contributor'] = 0
+        
+        return stats
     
-    def get_max_values(self):
+    def get_max_values(self, normalized=False):
         """Get maximum values across all repositories and periods for scaling charts"""
         max_commits = 0
         max_insertions = 0
         max_deletions = 0
+        max_commits_per_contributor = 0
+        max_insertions_per_contributor = 0
+        max_deletions_per_contributor = 0
         
         for repo_name in self.repo_activity:
             for period in self.repo_activity[repo_name]:
-                stats = self.repo_activity[repo_name][period]
+                stats = self.get_repo_stats_for_period(repo_name, period, normalized)
                 max_commits = max(max_commits, stats['commits'])
                 max_insertions = max(max_insertions, stats['insertions'])
                 max_deletions = max(max_deletions, stats['deletions'])
+                
+                if normalized:
+                    max_commits_per_contributor = max(max_commits_per_contributor, stats['commits_per_contributor'])
+                    max_insertions_per_contributor = max(max_insertions_per_contributor, stats['insertions_per_contributor'])
+                    max_deletions_per_contributor = max(max_deletions_per_contributor, stats['deletions_per_contributor'])
         
-        return {
+        result = {
             'commits': max_commits,
             'insertions': max_insertions,
             'deletions': max_deletions
         }
+        
+        if normalized:
+            result.update({
+                'commits_per_contributor': max_commits_per_contributor,
+                'insertions_per_contributor': max_insertions_per_contributor,
+                'deletions_per_contributor': max_deletions_per_contributor
+            })
+        
+        return result
     
-    def get_total_stats(self):
+    def get_total_stats(self, normalized=False):
         """Get total statistics across all repositories and periods"""
         total_commits = 0
         total_insertions = 0
         total_deletions = 0
+        total_contributors = set()  # Track unique contributors across all repos
         
         for repo_name in self.repo_activity:
             for period in self.repo_activity[repo_name]:
-                stats = self.repo_activity[repo_name][period]
-                total_commits += stats['commits']
-                total_insertions += stats['insertions']
-                total_deletions += stats['deletions']
+                period_data = self.repo_activity[repo_name][period]
+                total_commits += period_data['commits']
+                total_insertions += period_data['insertions']
+                total_deletions += period_data['deletions']
+                total_contributors.update(period_data['contributors'])
         
-        return {
+        result = {
             'commits': total_commits,
             'insertions': total_insertions,
-            'deletions': total_deletions
+            'deletions': total_deletions,
+            'contributors': len(total_contributors)
         }
+        
+        if normalized and len(total_contributors) > 0:
+            result.update({
+                'commits_per_contributor': round(total_commits / len(total_contributors), 2),
+                'insertions_per_contributor': round(total_insertions / len(total_contributors), 2),
+                'deletions_per_contributor': round(total_deletions / len(total_contributors), 2)
+            })
+        
+        return result

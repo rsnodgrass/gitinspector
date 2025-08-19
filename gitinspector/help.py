@@ -68,6 +68,9 @@ Boolean arguments can only be given to long options.
                                    instead of in months
   -A, --activity[=BOOL]          show repository activity statistics over time
                                    periods with bar graphs for each repository
+      --activity-normalize[=BOOL] normalize activity statistics by number of
+                                   contributors per period (shows per-contributor
+                                   productivity instead of absolute numbers)
   -x, --exclude=PATTERN          an exclusion pattern describing the file
                                    paths, revisions, revisions with certain
                                    commit messages, author names or author
