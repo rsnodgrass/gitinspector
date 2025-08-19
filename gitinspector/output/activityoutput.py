@@ -30,9 +30,10 @@ ACTIVITY_INFO_TEXT = N_(
 
 
 class ActivityOutput(Outputable):
-    def __init__(self, activity_data, normalize=False):
+    def __init__(self, activity_data, normalize=False, show_both=False):
         self.activity_data = activity_data
         self.normalize = normalize
+        self.show_both = show_both  # New parameter to show both raw and normalized
         Outputable.__init__(self)
 
     def output_text(self):
@@ -51,80 +52,136 @@ class ActivityOutput(Outputable):
             return
         
         period_type = "weeks" if self.activity_data.useweeks else "months"
-        norm_text = " (normalized per contributor)" if self.normalize else ""
-        print(f"\nActivity by repository over {period_type}{norm_text}:\n")
         
-        if self.normalize:
-            # Header for normalized data
+        if self.show_both:
+            # Show both raw and normalized data
+            print(f"\nActivity by repository over {period_type} (raw totals and per-contributor averages):\n")
+            
+            # Header showing both raw and normalized columns
             terminal.printb(
-                terminal.ljust("Repository", 20) +
-                terminal.ljust("Period", 12) +
-                terminal.rjust("Contributors", 13) +
-                terminal.rjust("Commits/Dev", 12) +
-                terminal.rjust("Lines+/Dev", 12) +
-                terminal.rjust("Lines-/Dev", 12)
+                terminal.ljust("Repository", 18) +
+                terminal.ljust("Period", 10) +
+                terminal.rjust("Contribs", 9) +
+                terminal.rjust("Commits", 8) +
+                terminal.rjust("C/Dev", 6) +
+                terminal.rjust("Lines+", 8) +
+                terminal.rjust("L+/Dev", 7) +
+                terminal.rjust("Lines-", 8) +
+                terminal.rjust("L-/Dev", 7)
             )
             
-            # Data rows for normalized data
+            # Data rows showing both raw and normalized data
             for repo in repositories:
                 for period in periods:
-                    stats = self.activity_data.get_repo_stats_for_period(repo, period, self.normalize)
-                    if stats['commits'] > 0:  # Only show periods with activity
+                    raw_stats = self.activity_data.get_repo_stats_for_period(repo, period, normalized=False)
+                    norm_stats = self.activity_data.get_repo_stats_for_period(repo, period, normalized=True)
+                    
+                    if raw_stats['commits'] > 0:  # Only show periods with activity
                         print(
-                            terminal.ljust(repo, 20) +
-                            terminal.ljust(period, 12) +
-                            str(stats['contributors']).rjust(13) +
-                            f"{stats['commits_per_contributor']:.1f}".rjust(12) +
-                            f"{stats['insertions_per_contributor']:.1f}".rjust(12) +
-                            f"{stats['deletions_per_contributor']:.1f}".rjust(12)
+                            terminal.ljust(repo, 18) +
+                            terminal.ljust(period, 10) +
+                            str(raw_stats['contributors']).rjust(9) +
+                            str(raw_stats['commits']).rjust(8) +
+                            f"{norm_stats['commits_per_contributor']:.1f}".rjust(6) +
+                            str(raw_stats['insertions']).rjust(8) +
+                            f"{norm_stats['insertions_per_contributor']:.1f}".rjust(7) +
+                            str(raw_stats['deletions']).rjust(8) +
+                            f"{norm_stats['deletions_per_contributor']:.1f}".rjust(7)
                         )
         else:
-            # Header for raw data
-            terminal.printb(
-                terminal.ljust("Repository", 20) +
-                terminal.ljust("Period", 12) +
-                terminal.rjust("Contributors", 13) +
-                terminal.rjust("Commits", 10) +
-                terminal.rjust("Insertions", 12) +
-                terminal.rjust("Deletions", 12)
-            )
+            # Show either raw or normalized data (existing behavior)
+            norm_text = " (normalized per contributor)" if self.normalize else ""
+            print(f"\nActivity by repository over {period_type}{norm_text}:\n")
             
-            # Data rows for raw data
-            for repo in repositories:
-                for period in periods:
-                    stats = self.activity_data.get_repo_stats_for_period(repo, period, self.normalize)
-                    if stats['commits'] > 0:  # Only show periods with activity
-                        print(
-                            terminal.ljust(repo, 20) +
-                            terminal.ljust(period, 12) +
-                            str(stats['contributors']).rjust(13) +
-                            str(stats['commits']).rjust(10) +
-                            str(stats['insertions']).rjust(12) +
-                            str(stats['deletions']).rjust(12)
-                        )
+            if self.normalize:
+                # Header for normalized data
+                terminal.printb(
+                    terminal.ljust("Repository", 20) +
+                    terminal.ljust("Period", 12) +
+                    terminal.rjust("Contributors", 13) +
+                    terminal.rjust("Commits/Dev", 12) +
+                    terminal.rjust("Lines+/Dev", 12) +
+                    terminal.rjust("Lines-/Dev", 12)
+                )
+                
+                # Data rows for normalized data
+                for repo in repositories:
+                    for period in periods:
+                        stats = self.activity_data.get_repo_stats_for_period(repo, period, self.normalize)
+                        if stats['commits'] > 0:  # Only show periods with activity
+                            print(
+                                terminal.ljust(repo, 20) +
+                                terminal.ljust(period, 12) +
+                                str(stats['contributors']).rjust(13) +
+                                f"{stats['commits_per_contributor']:.1f}".rjust(12) +
+                                f"{stats['insertions_per_contributor']:.1f}".rjust(12) +
+                                f"{stats['deletions_per_contributor']:.1f}".rjust(12)
+                            )
+            else:
+                # Header for raw data
+                terminal.printb(
+                    terminal.ljust("Repository", 20) +
+                    terminal.ljust("Period", 12) +
+                    terminal.rjust("Contributors", 13) +
+                    terminal.rjust("Commits", 10) +
+                    terminal.rjust("Insertions", 12) +
+                    terminal.rjust("Deletions", 12)
+                )
+                
+                # Data rows for raw data
+                for repo in repositories:
+                    for period in periods:
+                        stats = self.activity_data.get_repo_stats_for_period(repo, period, self.normalize)
+                        if stats['commits'] > 0:  # Only show periods with activity
+                            print(
+                                terminal.ljust(repo, 20) +
+                                terminal.ljust(period, 12) +
+                                str(stats['contributors']).rjust(13) +
+                                str(stats['commits']).rjust(10) +
+                                str(stats['insertions']).rjust(12) +
+                                str(stats['deletions']).rjust(12)
+                            )
         
         # Summary
-        totals = self.activity_data.get_total_stats(self.normalize)
-        print("\n" + "="*81)
-        if self.normalize:
-            avg_contributors = totals.get('contributors', 1)
+        if self.show_both:
+            # Summary showing both raw and normalized totals
+            raw_totals = self.activity_data.get_total_stats(normalized=False)
+            norm_totals = self.activity_data.get_total_stats(normalized=True)
+            print("\n" + "="*75)
             print(
-                terminal.ljust("TOTAL", 20) +
-                terminal.ljust("", 12) +
-                str(avg_contributors).rjust(13) +
-                f"{totals.get('commits_per_contributor', 0):.1f}".rjust(12) +
-                f"{totals.get('insertions_per_contributor', 0):.1f}".rjust(12) +
-                f"{totals.get('deletions_per_contributor', 0):.1f}".rjust(12)
+                terminal.ljust("TOTAL", 18) +
+                terminal.ljust("", 10) +
+                str(raw_totals.get('contributors', 0)).rjust(9) +
+                str(raw_totals['commits']).rjust(8) +
+                f"{norm_totals.get('commits_per_contributor', 0):.1f}".rjust(6) +
+                str(raw_totals['insertions']).rjust(8) +
+                f"{norm_totals.get('insertions_per_contributor', 0):.1f}".rjust(7) +
+                str(raw_totals['deletions']).rjust(8) +
+                f"{norm_totals.get('deletions_per_contributor', 0):.1f}".rjust(7)
             )
         else:
-            print(
-                terminal.ljust("TOTAL", 20) +
-                terminal.ljust("", 12) +
-                str(totals.get('contributors', 0)).rjust(13) +
-                str(totals['commits']).rjust(10) +
-                str(totals['insertions']).rjust(12) +
-                str(totals['deletions']).rjust(12)
-            )
+            # Summary for single mode (existing behavior)
+            totals = self.activity_data.get_total_stats(self.normalize)
+            print("\n" + "="*81)
+            if self.normalize:
+                avg_contributors = totals.get('contributors', 1)
+                print(
+                    terminal.ljust("TOTAL", 20) +
+                    terminal.ljust("", 12) +
+                    str(avg_contributors).rjust(13) +
+                    f"{totals.get('commits_per_contributor', 0):.1f}".rjust(12) +
+                    f"{totals.get('insertions_per_contributor', 0):.1f}".rjust(12) +
+                    f"{totals.get('deletions_per_contributor', 0):.1f}".rjust(12)
+                )
+            else:
+                print(
+                    terminal.ljust("TOTAL", 20) +
+                    terminal.ljust("", 12) +
+                    str(totals.get('contributors', 0)).rjust(13) +
+                    str(totals['commits']).rjust(10) +
+                    str(totals['insertions']).rjust(12) +
+                    str(totals['deletions']).rjust(12)
+                )
 
     def output_html(self):
         if not self.activity_data.get_repositories():
@@ -140,15 +197,19 @@ class ActivityOutput(Outputable):
             return
         
         period_type = "weeks" if self.activity_data.useweeks else "months"
-        norm_text = " (Per Contributor)" if self.normalize else ""
         
         print(f'<div class="box">')
-        print(f'<h4>Repository Activity Over Time{norm_text}</h4>')
-        print(f'<p>{_(ACTIVITY_INFO_TEXT)} by {period_type}. ', end='')
-        if self.normalize:
-            print('Statistics are normalized by the number of contributors per period to show per-developer productivity.</p>')
+        if self.show_both:
+            print(f'<h4>Repository Activity Over Time</h4>')
+            print(f'<p>{_(ACTIVITY_INFO_TEXT)} by {period_type}. Shows both raw totals and per-contributor averages for comprehensive analysis.</p>')
         else:
-            print('Raw statistics show absolute numbers.</p>')
+            norm_text = " (Per Contributor)" if self.normalize else ""
+            print(f'<h4>Repository Activity Over Time{norm_text}</h4>')
+            print(f'<p>{_(ACTIVITY_INFO_TEXT)} by {period_type}. ', end='')
+            if self.normalize:
+                print('Statistics are normalized by the number of contributors per period to show per-developer productivity.</p>')
+            else:
+                print('Raw statistics show absolute numbers.</p>')
         
         # Generate color palette for repositories
         colors = [
@@ -157,20 +218,36 @@ class ActivityOutput(Outputable):
         ]
         
         # Create charts for each metric
-        if self.normalize:
+        if self.show_both:
+            # Show both raw and normalized charts
+            raw_max_values = self.activity_data.get_max_values(normalized=False)
+            norm_max_values = self.activity_data.get_max_values(normalized=True)
+            
             metrics = [
-                ('commits_per_contributor', 'Commits per Contributor', max_values.get('commits_per_contributor', 0)),
-                ('insertions_per_contributor', 'Lines Added per Contributor', max_values.get('insertions_per_contributor', 0)),
-                ('deletions_per_contributor', 'Lines Deleted per Contributor', max_values.get('deletions_per_contributor', 0))
+                ('commits', 'Commits (Total)', raw_max_values['commits'], False),
+                ('commits_per_contributor', 'Commits per Contributor', norm_max_values.get('commits_per_contributor', 0), True),
+                ('insertions', 'Lines Added (Total)', raw_max_values['insertions'], False),
+                ('insertions_per_contributor', 'Lines Added per Contributor', norm_max_values.get('insertions_per_contributor', 0), True),
+                ('deletions', 'Lines Deleted (Total)', raw_max_values['deletions'], False),
+                ('deletions_per_contributor', 'Lines Deleted per Contributor', norm_max_values.get('deletions_per_contributor', 0), True)
             ]
         else:
-            metrics = [
-                ('commits', 'Commits', max_values['commits']),
-                ('insertions', 'Lines Added', max_values['insertions']),
-                ('deletions', 'Lines Deleted', max_values['deletions'])
-            ]
+            # Show either raw or normalized charts (existing behavior)
+            max_values = self.activity_data.get_max_values(self.normalize)
+            if self.normalize:
+                metrics = [
+                    ('commits_per_contributor', 'Commits per Contributor', max_values.get('commits_per_contributor', 0), True),
+                    ('insertions_per_contributor', 'Lines Added per Contributor', max_values.get('insertions_per_contributor', 0), True),
+                    ('deletions_per_contributor', 'Lines Deleted per Contributor', max_values.get('deletions_per_contributor', 0), True)
+                ]
+            else:
+                metrics = [
+                    ('commits', 'Commits', max_values['commits'], False),
+                    ('insertions', 'Lines Added', max_values['insertions'], False),
+                    ('deletions', 'Lines Deleted', max_values['deletions'], False)
+                ]
         
-        for metric, title, max_val in metrics:
+        for metric, title, max_val, is_normalized in metrics:
             if max_val == 0:
                 continue
                 
@@ -209,7 +286,7 @@ class ActivityOutput(Outputable):
             # Chart by period
             for period in periods:
                 has_activity = any(
-                    self.activity_data.get_repo_stats_for_period(repo, period, self.normalize).get(metric, 0) > 0 
+                    self.activity_data.get_repo_stats_for_period(repo, period, normalized=is_normalized).get(metric, 0) > 0 
                     for repo in repositories
                 )
                 
@@ -220,15 +297,15 @@ class ActivityOutput(Outputable):
                 print('<div class="repo-stats">')
                 
                 for i, repo in enumerate(repositories):
-                    stats = self.activity_data.get_repo_stats_for_period(repo, period, self.normalize)
+                    stats = self.activity_data.get_repo_stats_for_period(repo, period, normalized=is_normalized)
                     value = stats.get(metric, 0)
                     
                     if value > 0:
                         percentage = (value / max_val) * 100 if max_val > 0 else 0
                         color = colors[i % len(colors)]
                         
-                        # Format value display based on normalization
-                        if self.normalize and metric.endswith('_per_contributor'):
+                        # Format value display based on whether it's normalized
+                        if is_normalized and metric.endswith('_per_contributor'):
                             display_value = f"{value:.1f}"
                         else:
                             display_value = str(int(value))
@@ -247,68 +324,107 @@ class ActivityOutput(Outputable):
         
         # Summary table
         print('<h5>Summary Statistics</h5>')
-        if self.normalize:
+        if self.show_both:
+            # Show both raw and normalized statistics
             print('<table class="git">')
-            print('<thead><tr><th>Repository</th><th>Avg Contributors</th><th>Commits/Dev</th><th>Insertions/Dev</th><th>Deletions/Dev</th></tr></thead>')
+            print('<thead><tr><th>Repository</th><th>Contributors</th><th>Total Commits</th><th>Commits/Dev</th><th>Total Lines+</th><th>Lines+/Dev</th><th>Total Lines-</th><th>Lines-/Dev</th></tr></thead>')
             print('<tbody>')
             
             for repo in repositories:
+                # Get aggregated raw stats
                 total_commits = 0
                 total_insertions = 0
                 total_deletions = 0
-                total_contributor_periods = 0
                 unique_contributors = set()
                 
                 for period in periods:
-                    stats = self.activity_data.get_repo_stats_for_period(repo, period, False)  # Get raw stats
-                    if stats['commits'] > 0:
+                    raw_stats = self.activity_data.get_repo_stats_for_period(repo, period, normalized=False)
+                    if raw_stats['commits'] > 0:
+                        total_commits += raw_stats['commits']
+                        total_insertions += raw_stats['insertions']
+                        total_deletions += raw_stats['deletions']
+                        # Get actual contributor names for unique count
+                        period_data = self.activity_data.repo_activity.get(repo, {}).get(period, {})
+                        if 'contributors' in period_data:
+                            unique_contributors.update(period_data['contributors'])
+                
+                # Calculate per-contributor averages
+                total_contributors = len(unique_contributors)
+                commits_per_dev = total_commits / max(1, total_contributors)
+                insertions_per_dev = total_insertions / max(1, total_contributors)
+                deletions_per_dev = total_deletions / max(1, total_contributors)
+                
+                print(f'<tr>')
+                print(f'<td>{repo}</td>')
+                print(f'<td>{total_contributors}</td>')
+                print(f'<td>{total_commits}</td>')
+                print(f'<td>{commits_per_dev:.1f}</td>')
+                print(f'<td>{total_insertions}</td>')
+                print(f'<td>{insertions_per_dev:.1f}</td>')
+                print(f'<td>{total_deletions}</td>')
+                print(f'<td>{deletions_per_dev:.1f}</td>')
+                print(f'</tr>')
+        else:
+            # Show either raw or normalized (existing behavior)
+            if self.normalize:
+                print('<table class="git">')
+                print('<thead><tr><th>Repository</th><th>Avg Contributors</th><th>Commits/Dev</th><th>Insertions/Dev</th><th>Deletions/Dev</th></tr></thead>')
+                print('<tbody>')
+                
+                for repo in repositories:
+                    total_commits = 0
+                    total_insertions = 0
+                    total_deletions = 0
+                    total_contributor_periods = 0
+                    
+                    for period in periods:
+                        stats = self.activity_data.get_repo_stats_for_period(repo, period, False)  # Get raw stats
+                        if stats['commits'] > 0:
+                            total_commits += stats['commits']
+                            total_insertions += stats['insertions']
+                            total_deletions += stats['deletions']
+                            total_contributor_periods += stats['contributors']
+                    
+                    # Calculate average contributors per active period
+                    active_periods = sum(1 for period in periods 
+                                       if self.activity_data.get_repo_stats_for_period(repo, period, False)['commits'] > 0)
+                    avg_contributors = total_contributor_periods / active_periods if active_periods > 0 else 0
+                    
+                    print(f'<tr>')
+                    print(f'<td>{repo}</td>')
+                    print(f'<td>{avg_contributors:.1f}</td>')
+                    print(f'<td>{total_commits / max(1, total_contributor_periods):.1f}</td>')
+                    print(f'<td>{total_insertions / max(1, total_contributor_periods):.1f}</td>')
+                    print(f'<td>{total_deletions / max(1, total_contributor_periods):.1f}</td>')
+                    print(f'</tr>')
+            else:
+                print('<table class="git">')
+                print('<thead><tr><th>Repository</th><th>Total Contributors</th><th>Total Commits</th><th>Total Insertions</th><th>Total Deletions</th></tr></thead>')
+                print('<tbody>')
+                
+                for repo in repositories:
+                    total_commits = 0
+                    total_insertions = 0
+                    total_deletions = 0
+                    unique_contributors = set()
+                    
+                    for period in periods:
+                        stats = self.activity_data.get_repo_stats_for_period(repo, period, False)
                         total_commits += stats['commits']
                         total_insertions += stats['insertions']
                         total_deletions += stats['deletions']
-                        total_contributor_periods += stats['contributors']
-                        # Note: we'd need to track actual unique contributors across periods
-                        # For now, we'll use an approximation
-                
-                # Calculate average contributors per active period
-                active_periods = sum(1 for period in periods 
-                                   if self.activity_data.get_repo_stats_for_period(repo, period, False)['commits'] > 0)
-                avg_contributors = total_contributor_periods / active_periods if active_periods > 0 else 0
-                
-                print(f'<tr>')
-                print(f'<td>{repo}</td>')
-                print(f'<td>{avg_contributors:.1f}</td>')
-                print(f'<td>{total_commits / max(1, total_contributor_periods):.1f}</td>')
-                print(f'<td>{total_insertions / max(1, total_contributor_periods):.1f}</td>')
-                print(f'<td>{total_deletions / max(1, total_contributor_periods):.1f}</td>')
-                print(f'</tr>')
-        else:
-            print('<table class="git">')
-            print('<thead><tr><th>Repository</th><th>Total Contributors</th><th>Total Commits</th><th>Total Insertions</th><th>Total Deletions</th></tr></thead>')
-            print('<tbody>')
-            
-            for repo in repositories:
-                total_commits = 0
-                total_insertions = 0
-                total_deletions = 0
-                unique_contributors = set()
-                
-                for period in periods:
-                    stats = self.activity_data.get_repo_stats_for_period(repo, period, False)
-                    total_commits += stats['commits']
-                    total_insertions += stats['insertions']
-                    total_deletions += stats['deletions']
-                    # Get actual contributor names for unique count
-                    period_data = self.activity_data.repo_activity.get(repo, {}).get(period, {})
-                    if 'contributors' in period_data:
-                        unique_contributors.update(period_data['contributors'])
-                
-                print(f'<tr>')
-                print(f'<td>{repo}</td>')
-                print(f'<td>{len(unique_contributors)}</td>')
-                print(f'<td>{total_commits}</td>')
-                print(f'<td>{total_insertions}</td>')
-                print(f'<td>{total_deletions}</td>')
-                print(f'</tr>')
+                        # Get actual contributor names for unique count
+                        period_data = self.activity_data.repo_activity.get(repo, {}).get(period, {})
+                        if 'contributors' in period_data:
+                            unique_contributors.update(period_data['contributors'])
+                    
+                    print(f'<tr>')
+                    print(f'<td>{repo}</td>')
+                    print(f'<td>{len(unique_contributors)}</td>')
+                    print(f'<td>{total_commits}</td>')
+                    print(f'<td>{total_insertions}</td>')
+                    print(f'<td>{total_deletions}</td>')
+                    print(f'</tr>')
         
         print('</tbody></table>')
         print('</div>')  # box
