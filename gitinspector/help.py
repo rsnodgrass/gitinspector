@@ -66,6 +66,8 @@ Boolean arguments can only be given to long options.
                                    specific date
   -w, --weeks[=BOOL]             show all statistical information in weeks
                                    instead of in months
+  -A, --activity[=BOOL]          show repository activity statistics over time
+                                   periods with bar graphs for each repository
   -x, --exclude=PATTERN          an exclusion pattern describing the file
                                    paths, revisions, revisions with certain
                                    commit messages, author names or author

@@ -48,6 +48,8 @@ from .output.filteringoutput import FilteringOutput
 from .output.metricsoutput import MetricsOutput
 from .output.responsibilitiesoutput import ResponsibilitiesOutput
 from .output.timelineoutput import TimelineOutput
+from .output.activityoutput import ActivityOutput
+from . import activity
 
 localization.init()
 
@@ -62,6 +64,7 @@ class Runner(object):
         self.grading = False
         self.timeline = False
         self.useweeks = False
+        self.activity = False
 
     def _show_repo_progress(self, current_repo, total_repos, repo_name, progress_percent, status=""):
         """Show dynamic progress bar for repository processing"""
@@ -122,6 +125,7 @@ class Runner(object):
         summed_blames = Blame.__new__(Blame)
         summed_changes = Changes.__new__(Changes)
         summed_metrics = MetricsLogic.__new__(MetricsLogic)
+        changes_by_repo = {}  # Store changes by repository for activity analysis
 
         for repo_index, repo in enumerate(repos, 1):
             repo_name = repo.name or os.path.basename(repo.location)
@@ -143,6 +147,10 @@ class Runner(object):
                 self._show_repo_progress(repo_index, len(repos), repo_name, 50, "Analyzing file ownership...")
             summed_blames += Blame(repo, self.hard, self.useweeks, changes)
             summed_changes += changes
+            
+            # Store changes by repository for activity analysis
+            if self.activity:
+                changes_by_repo[repo_name] = changes
 
             # Step 3: Metrics analysis (90-95%)
             if self.include_metrics:
@@ -179,6 +187,10 @@ class Runner(object):
 
             if self.list_file_types:
                 outputable.output(ExtensionsOutput())
+
+            if self.activity and changes_by_repo:
+                activity_data = activity.ActivityData(changes_by_repo, self.useweeks)
+                outputable.output(ActivityOutput(activity_data))
 
         format.output_footer()
         os.chdir(previous_directory)
@@ -219,7 +231,7 @@ def main():
     try:
         opts, args = optval.gnu_getopt(
             argv[1:],
-            "f:F:hHlLmrTwx:",
+            "f:F:hHlLmrTwx:A",
             [
                 "exclude=",
                 "file-types=",
@@ -237,6 +249,7 @@ def main():
                 "until=",
                 "version",
                 "weeks:true",
+                "activity:true",
             ],
         )
         repos = __get_validated_git_repos__(set(args))
@@ -304,6 +317,10 @@ def main():
                 run.useweeks = True
             elif o == "--weeks":
                 run.useweeks = optval.get_boolean_argument(a)
+            elif o == "-A":
+                run.activity = True
+            elif o == "--activity":
+                run.activity = optval.get_boolean_argument(a)
             elif o in ("-x", "--exclude"):
                 if clear_x_on_next_pass:
                     clear_x_on_next_pass = False
