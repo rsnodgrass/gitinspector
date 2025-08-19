@@ -115,6 +115,25 @@ class Runner(object):
         print("\r{}\r{}".format(" " * terminal_width, message), end="", file=sys.stderr)
         sys.stderr.flush()
 
+    def _needs_blame_analysis(self):
+        """Determine if blame analysis is required based on enabled features."""
+        return (
+            not self.activity or  # If not activity-only mode, we need blame for default output
+            self.responsibilities  # ResponsibilitiesOutput requires blame
+            # Note: Default blame output is always shown unless in activity-only mode
+        )
+    
+    def _is_activity_only_mode(self):
+        """Check if only activity analysis is requested (optimization opportunity)."""
+        return (
+            self.activity and
+            not self.responsibilities and
+            not self.timeline and
+            not self.include_metrics and
+            not self.list_file_types
+            # In this mode, we only need Changes analysis, not Blame
+        )
+
     def process(self, repos):
         localization.check_compatibility(version.__version__)
 
@@ -124,9 +143,12 @@ class Runner(object):
         terminal.skip_escapes(not sys.stdout.isatty())
         terminal.set_stdout_encoding()
         previous_directory = os.getcwd()
-        summed_blames = Blame.__new__(Blame)
+        
+        # Conditional initialization based on what analysis is needed
+        needs_blame = self._needs_blame_analysis()
+        summed_blames = Blame.__new__(Blame) if needs_blame else None
         summed_changes = Changes.__new__(Changes)
-        summed_metrics = MetricsLogic.__new__(MetricsLogic)
+        summed_metrics = MetricsLogic.__new__(MetricsLogic) if self.include_metrics else None
         changes_by_repo = {}  # Store changes by repository for activity analysis
 
         for repo_index, repo in enumerate(repos, 1):
@@ -139,25 +161,28 @@ class Runner(object):
             os.chdir(repo.location)
             repo = repo if len(repos) > 1 else None
 
-            # Step 1: Changes analysis (0-50%)
+            # Step 1: Changes analysis (always needed)
             if len(repos) > 1 and sys.stderr.isatty():
                 self._show_repo_progress(repo_index, len(repos), repo_name, 10, "Analyzing commits...")
             changes = Changes(repo, self.hard)
 
-            # Step 2: Blame analysis (50-90%)
-            if len(repos) > 1 and sys.stderr.isatty():
-                self._show_repo_progress(repo_index, len(repos), repo_name, 50, "Analyzing file ownership...")
-            summed_blames += Blame(repo, self.hard, self.useweeks, changes)
+            # Step 2: Blame analysis (conditional - skip if only activity is needed)
+            if needs_blame:
+                if len(repos) > 1 and sys.stderr.isatty():
+                    self._show_repo_progress(repo_index, len(repos), repo_name, 50, "Analyzing file ownership...")
+                summed_blames += Blame(repo, self.hard, self.useweeks, changes)
+            
             summed_changes += changes
 
             # Store changes by repository for activity analysis
             if self.activity:
                 changes_by_repo[repo_name] = changes
 
-            # Step 3: Metrics analysis (90-95%)
+            # Step 3: Metrics analysis (conditional)
             if self.include_metrics:
+                progress_step = 90 if needs_blame else 50  # Adjust progress based on what steps we're doing
                 if len(repos) > 1 and sys.stderr.isatty():
-                    self._show_repo_progress(repo_index, len(repos), repo_name, 90, "Calculating metrics...")
+                    self._show_repo_progress(repo_index, len(repos), repo_name, progress_step, "Calculating metrics...")
                 summed_metrics += MetricsLogic()
 
             # Show completion
@@ -171,28 +196,39 @@ class Runner(object):
             os.chdir(previous_directory)
 
         format.output_header(repos)
-        outputable.output(ChangesOutput(summed_changes))
-
-        if summed_changes.get_commits():
-            outputable.output(BlameOutput(summed_changes, summed_blames))
-
-            if self.timeline:
-                outputable.output(TimelineOutput(summed_changes, self.useweeks))
-
-            if self.include_metrics:
-                outputable.output(MetricsOutput(summed_metrics))
-
-            if self.responsibilities:
-                outputable.output(ResponsibilitiesOutput(summed_changes, summed_blames))
-
-            outputable.output(FilteringOutput())
-
-            if self.list_file_types:
-                outputable.output(ExtensionsOutput())
-
+        
+        # Conditional output based on requested analysis
+        if self._is_activity_only_mode():
+            # Activity-only mode: skip default outputs and only show activity
             if self.activity and changes_by_repo:
                 activity_data = activity.ActivityData(changes_by_repo, self.useweeks)
                 outputable.output(ActivityOutput(activity_data, self.activity_normalize, self.activity_dual))
+        else:
+            # Standard mode: show requested outputs
+            outputable.output(ChangesOutput(summed_changes))
+
+            if summed_changes.get_commits():
+                # Only output blame if we computed it
+                if summed_blames is not None:
+                    outputable.output(BlameOutput(summed_changes, summed_blames))
+
+                if self.timeline:
+                    outputable.output(TimelineOutput(summed_changes, self.useweeks))
+
+                if self.include_metrics and summed_metrics is not None:
+                    outputable.output(MetricsOutput(summed_metrics))
+
+                if self.responsibilities and summed_blames is not None:
+                    outputable.output(ResponsibilitiesOutput(summed_changes, summed_blames))
+
+                outputable.output(FilteringOutput())
+
+                if self.list_file_types:
+                    outputable.output(ExtensionsOutput())
+
+                if self.activity and changes_by_repo:
+                    activity_data = activity.ActivityData(changes_by_repo, self.useweeks)
+                    outputable.output(ActivityOutput(activity_data, self.activity_normalize, self.activity_dual))
 
         format.output_footer()
         os.chdir(previous_directory)
