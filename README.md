@@ -101,8 +101,11 @@ python gitinspector.py -A repo1 repo2 repo3
 # Show weekly activity with HTML bar charts
 python gitinspector.py -A -w -F html repo1 repo2 repo3 > activity_report.html
 
+# 🎯 Normalized per-contributor analysis (recommended!)
+python gitinspector.py -A --activity-normalize repo1 repo2 repo3
+
 # Combine with other analysis options
-python gitinspector.py -A -F html --since 2024-01-01 \
+python gitinspector.py -A --activity-normalize -F html --since 2024-01-01 \
   --team-config team_config.json \
   frontend-repo backend-repo mobile-repo > team_activity.html
 ```
@@ -111,8 +114,25 @@ python gitinspector.py -A -F html --since 2024-01-01 \
 - **Time-based Analysis**: Monthly or weekly breakdowns (`-w` for weeks)
 - **Repository Comparison**: Side-by-side activity comparison
 - **Multiple Metrics**: Commits, line insertions, and deletions per repository
+- **🔥 Normalization**: `--activity-normalize` shows per-contributor productivity
 - **Beautiful Charts**: HTML output includes interactive bar graphs
 - **All Formats**: Text, HTML, JSON, and XML output supported
+
+**Why Use Normalization?**
+
+Raw activity statistics can be misleading when team sizes grow over time. The `--activity-normalize` feature solves this by showing **per-contributor averages**:
+
+```bash
+# Raw stats: Shows total numbers (affected by team growth)
+python gitinspector.py -A repo1 repo2
+
+# Normalized stats: Shows per-developer averages (true productivity)
+python gitinspector.py -A --activity-normalize repo1 repo2
+```
+
+**Example Output Comparison:**
+- **Raw**: "50 commits in Q3" (but team grew from 2 to 5 people)
+- **Normalized**: "12.5 commits/developer in Q3" (actual productivity per person)
 
 **HTML Output Includes:**
 - Color-coded bar charts for each metric (commits, insertions, deletions)
