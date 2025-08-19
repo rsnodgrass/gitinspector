@@ -202,6 +202,26 @@
 
 					$(this).css("background-color", "rgb(" + rgb[0] + "," + rgb[1] + "," + rgb[2] + ")");
 				}});
+
+				// Collapsible sections functionality
+				$('.collapsible-header').click(function() {{
+					var content = $(this).next('.collapsible-content');
+					var icon = $(this).find('.collapse-icon');
+					
+					if (content.is(':visible')) {{
+						content.slideUp(300);
+						icon.text('▶');
+						$(this).removeClass('expanded');
+					}} else {{
+						content.slideDown(300);
+						icon.text('▼');
+						$(this).addClass('expanded');
+					}}
+				}});
+
+				// Initialize all sections as collapsed by default
+				$('.collapsible-content').hide();
+				$('.collapse-icon').text('▶');
 			}});
 		</script>
 		<style type="text/css">
@@ -357,6 +377,64 @@
 				padding: 0.5em;
 				background-color: #ddcece;
 				min-height: 0;
+			}}
+			
+			/* Collapsible sections styles */
+			.collapsible-header {{
+				cursor: pointer;
+				user-select: none;
+				-webkit-user-select: none;
+				-moz-user-select: none;
+				-ms-user-select: none;
+				background-color: #c8bebe;
+				border: 2px solid #bbb;
+				border-radius: 8px;
+				margin: 0.75em;
+				padding: 0.75em;
+				font-weight: bold;
+				font-size: 1.1em;
+				transition: background-color 0.3s ease;
+				position: relative;
+			}}
+			
+			.collapsible-header:hover {{
+				background-color: #d4c4c4;
+				border-color: #999;
+			}}
+			
+			.collapsible-header.expanded {{
+				background-color: #d8cece;
+				border-bottom-left-radius: 0;
+				border-bottom-right-radius: 0;
+				border-bottom: 1px solid #bbb;
+			}}
+			
+			.collapse-icon {{
+				position: absolute;
+				right: 0.75em;
+				top: 50%;
+				transform: translateY(-50%);
+				font-size: 1.2em;
+				color: #666;
+				transition: transform 0.3s ease;
+			}}
+			
+			.collapsible-content {{
+				border: 2px solid #bbb;
+				border-top: none;
+				border-radius: 0 0 8px 8px;
+				margin: 0 0.75em 0.75em 0.75em;
+				padding: 0;
+				background-color: #f5f5f5;
+				overflow: hidden;
+			}}
+			
+			.collapsible-content .box {{
+				margin: 0;
+				border: none;
+				border-radius: 0;
+				box-shadow: none;
+				-moz-box-shadow: none;
 			}}
 		</style>
 	</head>

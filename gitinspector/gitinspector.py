@@ -118,19 +118,19 @@ class Runner(object):
     def _needs_blame_analysis(self):
         """Determine if blame analysis is required based on enabled features."""
         return (
-            not self.activity or  # If not activity-only mode, we need blame for default output
-            self.responsibilities  # ResponsibilitiesOutput requires blame
+            not self.activity  # If not activity-only mode, we need blame for default output
+            or self.responsibilities  # ResponsibilitiesOutput requires blame
             # Note: Default blame output is always shown unless in activity-only mode
         )
-    
+
     def _is_activity_only_mode(self):
         """Check if only activity analysis is requested (optimization opportunity)."""
         return (
-            self.activity and
-            not self.responsibilities and
-            not self.timeline and
-            not self.include_metrics and
-            not self.list_file_types
+            self.activity
+            and not self.responsibilities
+            and not self.timeline
+            and not self.include_metrics
+            and not self.list_file_types
             # In this mode, we only need Changes analysis, not Blame
         )
 
@@ -143,7 +143,7 @@ class Runner(object):
         terminal.skip_escapes(not sys.stdout.isatty())
         terminal.set_stdout_encoding()
         previous_directory = os.getcwd()
-        
+
         # Conditional initialization based on what analysis is needed
         needs_blame = self._needs_blame_analysis()
         summed_blames = Blame.__new__(Blame) if needs_blame else None
@@ -171,7 +171,7 @@ class Runner(object):
                 if len(repos) > 1 and sys.stderr.isatty():
                     self._show_repo_progress(repo_index, len(repos), repo_name, 50, "Analyzing file ownership...")
                 summed_blames += Blame(repo, self.hard, self.useweeks, changes)
-            
+
             summed_changes += changes
 
             # Store changes by repository for activity analysis
@@ -182,7 +182,9 @@ class Runner(object):
             if self.include_metrics:
                 progress_step = 90 if needs_blame else 50  # Adjust progress based on what steps we're doing
                 if len(repos) > 1 and sys.stderr.isatty():
-                    self._show_repo_progress(repo_index, len(repos), repo_name, progress_step, "Calculating metrics...")
+                    self._show_repo_progress(
+                        repo_index, len(repos), repo_name, progress_step, "Calculating metrics..."
+                    )
                 summed_metrics += MetricsLogic()
 
             # Show completion
@@ -196,7 +198,7 @@ class Runner(object):
             os.chdir(previous_directory)
 
         format.output_header(repos)
-        
+
         # Conditional output based on requested analysis
         if self._is_activity_only_mode():
             # Activity-only mode: skip default outputs and only show activity
