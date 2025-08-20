@@ -17,7 +17,7 @@ import shutil
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import the repository creation utilities
-from create_simple_test_repos import create_git_repo, add_commit
+from .create_simple_test_repos import create_git_repo, add_commit
 from datetime import datetime, timedelta
 
 
