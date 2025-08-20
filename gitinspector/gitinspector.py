@@ -295,6 +295,7 @@ def main():
                 "since=",
                 "grading:true",
                 "team-config=",
+                "config-repos:true",
                 "timeline:true",
                 "until=",
                 "version",
@@ -305,7 +306,51 @@ def main():
                 "activity-chart=",
             ],
         )
-        repos = __get_validated_git_repos__(set(args))
+
+        # First, process team-config option to load repositories if needed
+        team_config_file = None
+        use_config_repos = False
+
+        for o, a in opts:
+            if o == "--team-config":
+                team_config_file = a
+            elif o == "--config-repos":
+                use_config_repos = optval.get_boolean_argument(a)
+
+        # Load team config if specified
+        if team_config_file:
+            try:
+                teamconfig.load_team_config(team_config_file)
+            except teamconfig.TeamConfigError as e:
+                print(sys.argv[0], "\b:", e.msg, file=sys.stderr)
+                sys.exit(1)
+
+        # Determine which repositories to use
+        if args:
+            # Command line repositories always override config repositories
+            repos = __get_validated_git_repos__(set(args))
+            if use_config_repos and teamconfig.has_repositories():
+                print("Command line repositories override config file repositories", file=sys.stderr)
+        elif use_config_repos:
+            # Use repositories from config file only when no command line repos
+            if teamconfig.has_repositories():
+                config_repos = teamconfig.get_repositories()
+                if not config_repos:
+                    print(sys.argv[0], "\b:", "No repositories found in config file", file=sys.stderr)
+                    sys.exit(1)
+                repos = __get_validated_git_repos__(config_repos)
+                print("Using {0} repositories from config file".format(len(config_repos)), file=sys.stderr)
+            else:
+                print(
+                    sys.argv[0],
+                    "\b:",
+                    "--config-repos specified but no repositories found in config file",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+        else:
+            # Fall back to current directory (existing behavior)
+            repos = __get_validated_git_repos__(["."])
 
         # We need the repos above to be set before we read the git config.
         GitConfig(run, repos[-1].location).read()
@@ -361,11 +406,8 @@ def main():
                 run.timeline = grading
                 run.useweeks = grading
             elif o == "--team-config":
-                try:
-                    teamconfig.load_team_config(a)
-                except teamconfig.TeamConfigError as e:
-                    print(sys.argv[0], "\b:", e.msg, file=sys.stderr)
-                    sys.exit(1)
+                # Already processed above, skip here
+                pass
             elif o == "-T":
                 run.timeline = True
             elif o == "--timeline":

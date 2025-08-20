@@ -180,7 +180,7 @@ python gitinspector.py --quarter Q3-2025 --team-config team.json -A repo1 repo2
 This replaces the need to manually calculate and specify `--since` and `--until` dates for quarterly analysis.
 
 ### Team Configuration (Optional)
-To filter analysis to specific team members, create a JSON configuration file:
+To filter analysis to specific team members and optionally define repositories, create a JSON configuration file:
 
 **team_config.json:**
 ```json
@@ -190,9 +190,35 @@ To filter analysis to specific team members, create a JSON configuration file:
     "jane.smith@company.com",
     "alice.johnson",
     "bob.wilson"
+  ],
+  "_comment_repos": "optional: list of repository paths to analyze when using --config-repos",
+  "repositories": [
+    "../recall-api",
+    "../otter-web",
+    "/path/to/other/repo"
   ]
 }
 ```
+
+**Repository Management with `--config-repos`:**
+Instead of typing repository paths repeatedly, you can store them in your config file and use the `--config-repos` flag:
+
+```bash
+# Use repositories from config file
+python gitinspector.py --config-repos --team-config team_config.json -A --quarter Q2-2025 -F html -f "**" > analysis.html
+
+# Command line repositories override config repositories
+python gitinspector.py --config-repos --team-config team_config.json -A --quarter Q2-2025 -F html -f "**" ../different-repo > analysis.html
+
+# Use only command line repositories (existing behavior)
+python gitinspector.py --team-config team_config.json -A --quarter Q2-2025 -F html -f "**" ../recall-api ../otter-web > analysis.html
+```
+
+**Benefits:**
+- **Convenience**: No need to type repository paths repeatedly
+- **Flexibility**: Command line repositories always override config repositories
+- **Team Consistency**: Share the same repository list across team members
+- **Maintenance**: Update repository list in one place
 
 ### Comprehensive Examples
 
@@ -259,6 +285,27 @@ python gitinspector.py \
 - `-F html` - HTML output with interactive charts
 - Multiple repositories for comparison
 
+#### Example 4: Config-Based Repository Analysis
+```bash
+# Use repositories from config file for convenience
+python gitinspector.py \
+  --config-repos \
+  --team-config team_config.json \
+  --quarter Q2-2025 \
+  -A --activity-dual \
+  -F html \
+  -f "**" > q2_team_analysis.html
+```
+
+**What this command does:**
+- `--config-repos` - Read repository paths from team config file
+- `--team-config team_config.json` - Use team filtering and repository list from config
+- `--quarter Q2-2025` - Analyze Q2 2025 (April 1 - June 30)
+- `-A --activity-dual` - Show both raw and normalized activity statistics
+- `-F html` - HTML output format
+- `-f "**"` - Include all file types
+- No need to specify repositories on command line
+
 ### Enhanced HTML Output
 
 The HTML output format has been significantly enhanced with modern features:
@@ -305,6 +352,7 @@ The HTML output format has been significantly enhanced with modern features:
 
 **Advanced Features:**
 - **Team Filtering**: Filter results to specific team members with `--team-config`
+- **Repository Management**: Store repository paths in config files with `--config-repos`
 - **Date Ranges**: Analyze specific time periods with `--since`/`--until` or `--quarter`
 - **Exclusion Patterns**: Exclude specific files, authors, or commits with `-x`
 - **Localization**: Support for multiple languages with `-L`

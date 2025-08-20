@@ -20,9 +20,11 @@
 import os
 import json
 
-# Global variable to store team members
+# Global variables to store team members and repositories
 __team_members__ = set()
 __team_config_loaded__ = False
+__repositories__ = []
+__repositories_loaded__ = False
 
 
 class TeamConfigError(Exception):
@@ -33,7 +35,7 @@ class TeamConfigError(Exception):
 
 def load_team_config(config_file_path):
     """Load team configuration from JSON file"""
-    global __team_members__, __team_config_loaded__
+    global __team_members__, __team_config_loaded__, __repositories__, __repositories_loaded__
 
     if not os.path.exists(config_file_path):
         raise TeamConfigError("Team config file not found: {0}".format(config_file_path))
@@ -42,7 +44,11 @@ def load_team_config(config_file_path):
         with open(config_file_path, "r", encoding="utf-8") as file:
             config = json.load(file)
 
-        if not config or "team" not in config:
+        if not config:
+            raise TeamConfigError("Invalid team config: empty file {0}".format(config_file_path))
+
+        # Load team members (required)
+        if "team" not in config:
             raise TeamConfigError("Invalid team config: 'team' key not found in {0}".format(config_file_path))
 
         if not isinstance(config["team"], list):
@@ -52,7 +58,22 @@ def load_team_config(config_file_path):
         __team_members__ = set(config["team"])
         __team_config_loaded__ = True
 
-        print("Loaded team config with {0} members from {1}".format(len(__team_members__), config_file_path))
+        # Load repositories (optional)
+        if "repositories" in config:
+            if not isinstance(config["repositories"], list):
+                raise TeamConfigError(
+                    "Invalid team config: 'repositories' must be a list in {0}".format(config_file_path)
+                )
+
+            __repositories__ = config["repositories"]
+            __repositories_loaded__ = True
+            print(
+                "Loaded team config with {0} members and {1} repositories from {2}".format(
+                    len(__team_members__), len(__repositories__), config_file_path
+                )
+            )
+        else:
+            print("Loaded team config with {0} members from {1}".format(len(__team_members__), config_file_path))
 
     except json.JSONDecodeError as e:
         raise TeamConfigError("Error parsing JSON file {0}: {1}".format(config_file_path, str(e)))
@@ -91,8 +112,20 @@ def is_team_filtering_enabled():
     return __team_config_loaded__
 
 
+def get_repositories():
+    """Get the list of repositories from config file"""
+    return __repositories__.copy()
+
+
+def has_repositories():
+    """Check if repositories are loaded from config file"""
+    return __repositories_loaded__
+
+
 def clear_team_config():
     """Clear loaded team configuration"""
-    global __team_members__, __team_config_loaded__
+    global __team_members__, __team_config_loaded__, __repositories__, __repositories_loaded__
     __team_members__ = set()
     __team_config_loaded__ = False
+    __repositories__ = []
+    __repositories_loaded__ = False

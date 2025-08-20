@@ -65,6 +65,10 @@ Boolean arguments can only be given to long options.
       --team-config=FILE         path to JSON file containing team member names;
                                    only statistics for these team members will
                                    be included in the output
+      --config-repos[=BOOL]      when enabled, read repository paths from the
+                                   team config file instead of command line;
+                                   command line repositories override config
+                                   file repositories when both are specified
   -T, --timeline[=BOOL]          show commit timeline, including author names
       --until=DATE               only show statistics for commits older than a
                                    specific date

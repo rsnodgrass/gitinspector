@@ -5,5 +5,11 @@
     "behrooz",
     "Nick",
     "Bob"
+  ],
+  "_comment_repos": "optional: list of repository paths to analyze when using --config-repos",
+  "repositories": [
+    ".",
+    "../recall-api",
+    "../otter-web"
   ]
 }
