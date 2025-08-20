@@ -67,6 +67,7 @@ class Runner(object):
         self.activity = False
         self.activity_normalize = False
         self.activity_dual = False
+        self.activity_chart_type = "line"  # 'line' (default) or 'bar'
 
     def _show_repo_progress(self, current_repo, total_repos, repo_name, progress_percent, status=""):
         """Show dynamic progress bar for repository processing"""
@@ -204,7 +205,11 @@ class Runner(object):
             # Activity-only mode: skip default outputs and only show activity
             if self.activity and changes_by_repo:
                 activity_data = activity.ActivityData(changes_by_repo, self.useweeks)
-                outputable.output(ActivityOutput(activity_data, self.activity_normalize, self.activity_dual))
+                outputable.output(
+                    ActivityOutput(
+                        activity_data, self.activity_normalize, self.activity_dual, self.activity_chart_type
+                    )
+                )
         else:
             # Standard mode: show requested outputs
             outputable.output(ChangesOutput(summed_changes))
@@ -230,7 +235,11 @@ class Runner(object):
 
                 if self.activity and changes_by_repo:
                     activity_data = activity.ActivityData(changes_by_repo, self.useweeks)
-                    outputable.output(ActivityOutput(activity_data, self.activity_normalize, self.activity_dual))
+                    outputable.output(
+                        ActivityOutput(
+                            activity_data, self.activity_normalize, self.activity_dual, self.activity_chart_type
+                        )
+                    )
 
         format.output_footer()
         os.chdir(previous_directory)
@@ -292,6 +301,7 @@ def main():
                 "activity:true",
                 "activity-normalize:true",
                 "activity-dual:true",
+                "activity-chart=",
             ],
         )
         repos = __get_validated_git_repos__(set(args))
@@ -367,6 +377,11 @@ def main():
                 run.activity_normalize = optval.get_boolean_argument(a)
             elif o == "--activity-dual":
                 run.activity_dual = optval.get_boolean_argument(a)
+            elif o == "--activity-chart":
+                chart = a.strip().lower()
+                if chart not in ("line", "bar"):
+                    raise optval.InvalidOptionArgument("--activity-chart must be 'line' or 'bar'")
+                run.activity_chart_type = chart
             elif o in ("-x", "--exclude"):
                 if clear_x_on_next_pass:
                     clear_x_on_next_pass = False

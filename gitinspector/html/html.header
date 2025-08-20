@@ -230,7 +230,26 @@
 							icon.text('▶');
 							$(this).removeClass('expanded');
 						}} else {{
-							content.slideDown(300);
+							content.slideDown(300, function() {{
+								// Initialize any deferred line charts within this content
+								try {{
+									if (window.gitinspectorCharts) {{
+										$(this).find('.line-chart').each(function() {{
+											var cid = $(this).attr('id');
+											if (!$(this).data('plotted') && window.gitinspectorCharts[cid]) {{
+												var cfg = window.gitinspectorCharts[cid];
+												$.plot($('#' + cid), cfg.series, {{
+													series: {{ lines: {{ show: true }}, points: {{ show: true }} }},
+													xaxis: {{ ticks: cfg.ticks }},
+													grid: {{ hoverable: true }},
+													legend: {{ position: 'ne' }}
+												}});
+												$(this).data('plotted', true);
+											}}
+										}});
+									}}
+								}} catch (e) {{ /* ignore plotting errors to keep UI responsive */ }}
+							}});
 							icon.text('▼');
 							$(this).addClass('expanded');
 						}}

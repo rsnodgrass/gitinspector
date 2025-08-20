@@ -203,12 +203,11 @@ PROGRESS_TEXT = N_("Fetching and calculating primary statistics (1 of 2): {0:.0f
 
 
 class Changes(object):
-    authors = {}
-    authors_dateinfo = {}
-    authors_by_email = {}
-    emails_by_author = {}
-
     def __init__(self, repo, hard):
+        self.authors = {}
+        self.authors_dateinfo = {}
+        self.authors_by_email = {}
+        self.emails_by_author = {}
         self.commits = []
         interval.set_ref("HEAD")
         git_rev_list_p = subprocess.Popen(

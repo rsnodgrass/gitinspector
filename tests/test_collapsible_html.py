@@ -200,7 +200,7 @@ class TestCollapsibleHTML(GitInspectorTestCase):
             self.assertIn(css_class, header_content, f"CSS class {css_class} not found in header")
 
         # Check for JavaScript functionality
-        required_js = ["collapsible-header').click", "slideUp(300)", "slideDown(300)", "collapse-icon"]
+        required_js = ["collapsible-header').click", "slideUp(300)", "slideDown(300, function()", "collapse-icon"]
 
         for js_snippet in required_js:
             self.assertIn(js_snippet, header_content, f"JavaScript snippet {js_snippet} not found in header")
@@ -294,6 +294,15 @@ class TestChartCollapsibleHTML(GitInspectorTestCase):
 
             def get_repo_stats_for_period(self, repo, period, normalized=False):
                 return self.repo_activity.get(repo, {}).get(period, {"commits": 0, "insertions": 0, "deletions": 0})
+
+            def get_repo_unique_contributors(self, repo):
+                """Mock method for testing"""
+                unique_contributors = set()
+                if repo in self.repo_activity:
+                    for period_data in self.repo_activity[repo].values():
+                        if "contributors" in period_data:
+                            unique_contributors.update(period_data["contributors"])
+                return unique_contributors
 
         # Capture stdout
         old_stdout = sys.stdout
