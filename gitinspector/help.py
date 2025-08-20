@@ -56,6 +56,10 @@ Boolean arguments can only be given to long options.
                                    analysis of commits
   -r  --responsibilities[=BOOL]  show which files the different authors seem
                                    most responsible for
+      --quarter=QUARTER          set since and until dates for a business quarter
+                                   (e.g., Q1-2025, Q2-2025, Q3-2025, Q4-2025)
+                                   Q1: Jan 1 - Mar 31, Q2: Apr 1 - Jun 30
+                                   Q3: Jul 1 - Sep 30, Q4: Oct 1 - Dec 31
       --since=DATE               only show statistics for commits more recent
                                    than a specific date
       --team-config=FILE         path to JSON file containing team member names;

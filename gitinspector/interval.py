@@ -56,3 +56,51 @@ def get_ref():
 def set_ref(ref):
     global __ref__
     __ref__ = ref
+
+
+def set_quarter(quarter_str):
+    """Set since and until dates based on a quarter string (e.g., 'Q1-2025', 'Q2-2025').
+    
+    Quarter format: Q{1-4}-{year}
+    Q1: Jan 1 - Mar 31
+    Q2: Apr 1 - Jun 30  
+    Q3: Jul 1 - Sep 30
+    Q4: Oct 1 - Dec 31
+    """
+    import re
+    from datetime import datetime, timedelta
+    
+    # Parse quarter string (e.g., "Q1-2025", "Q2-2025")
+    # Must be exactly Q{1-4}-{4-digit-year} with no extra characters
+    match = re.match(r'^Q([1-4])-(\d{4})$', quarter_str.upper())
+    if not match:
+        raise ValueError(f"Invalid quarter format: {quarter_str}. Expected format: Q1-2025, Q2-2025, etc.")
+    
+    quarter = int(match.group(1))
+    year = int(match.group(2))
+    
+    # Define quarter start dates
+    quarter_starts = {
+        1: (1, 1),    # January 1
+        2: (4, 1),    # April 1
+        3: (7, 1),    # July 1
+        4: (10, 1),   # October 1
+    }
+    
+    # Define quarter end dates
+    quarter_ends = {
+        1: (3, 31),   # March 31
+        2: (6, 30),   # June 30
+        3: (9, 30),   # September 30
+        4: (12, 31),  # December 31
+    }
+    
+    # Set since date (start of quarter)
+    start_month, start_day = quarter_starts[quarter]
+    since_date = datetime(year, start_month, start_day)
+    set_since(since_date.strftime('%Y-%m-%d'))
+    
+    # Set until date (end of quarter)
+    end_month, end_day = quarter_ends[quarter]
+    until_date = datetime(year, end_month, end_day)
+    set_until(until_date.strftime('%Y-%m-%d'))

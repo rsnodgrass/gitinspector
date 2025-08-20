@@ -291,6 +291,7 @@ def main():
                 "localize-output:true",
                 "metrics:true",
                 "responsibilities:true",
+                "quarter=",
                 "since=",
                 "grading:true",
                 "team-config=",
@@ -339,6 +340,12 @@ def main():
                 run.responsibilities = True
             elif o == "--responsibilities":
                 run.responsibilities = optval.get_boolean_argument(a)
+            elif o == "--quarter":
+                try:
+                    interval.set_quarter(a)
+                except ValueError as e:
+                    print(sys.argv[0], "\b:", str(e), file=sys.stderr)
+                    sys.exit(1)
             elif o == "--since":
                 interval.set_since(a)
             elif o == "--version":
