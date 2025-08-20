@@ -75,16 +75,16 @@ class TestQuarterFunctionality(unittest.TestCase):
     def test_invalid_format(self):
         """Test that invalid formats raise ValueError."""
         invalid_formats = [
-            "Q1-202",      # Short year
-            "Q1-20255",    # Long year
-            "Q1-2025-",    # Extra dash
+            "Q1-202",  # Short year
+            "Q1-20255",  # Long year
+            "Q1-2025-",  # Extra dash
             "Q1-2025-01",  # Extra date part
-            "Q1",          # Missing year
-            "2025-Q1",     # Wrong order
-            "Q1_2025",     # Wrong separator
-            "Q1 2025",     # Space separator
+            "Q1",  # Missing year
+            "2025-Q1",  # Wrong order
+            "Q1_2025",  # Wrong separator
+            "Q1 2025",  # Space separator
         ]
-        
+
         for invalid_format in invalid_formats:
             with self.assertRaises(ValueError) as context:
                 set_quarter(invalid_format)
@@ -96,17 +96,17 @@ class TestQuarterFunctionality(unittest.TestCase):
         set_quarter("Q1-2025")
         self.assertEqual(get_since(), "--since=2025-01-01")
         self.assertEqual(get_until(), "--until=2025-03-31")
-        
+
         # Q2: Apr 1 - Jun 30
         set_quarter("Q2-2025")
         self.assertEqual(get_since(), "--since=2025-04-01")
         self.assertEqual(get_until(), "--until=2025-06-30")
-        
+
         # Q3: Jul 1 - Sep 30
         set_quarter("Q3-2025")
         self.assertEqual(get_since(), "--since=2025-07-01")
         self.assertEqual(get_until(), "--until=2025-09-30")
-        
+
         # Q4: Oct 1 - Dec 31
         set_quarter("Q4-2025")
         self.assertEqual(get_since(), "--since=2025-10-01")
@@ -118,7 +118,7 @@ class TestQuarterFunctionality(unittest.TestCase):
         set_quarter("Q1-2025")
         self.assertEqual(get_since(), "--since=2025-01-01")
         self.assertEqual(get_until(), "--until=2025-03-31")
-        
+
         # Set new quarter
         set_quarter("Q3-2026")
         self.assertEqual(get_since(), "--since=2026-07-01")
@@ -129,7 +129,7 @@ class TestQuarterFunctionality(unittest.TestCase):
         # Set manual dates first
         set_since("2024-01-01")
         set_until("2024-12-31")
-        
+
         # Set quarter (should overwrite manual dates)
         set_quarter("Q2-2025")
         self.assertEqual(get_since(), "--since=2025-04-01")
