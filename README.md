@@ -89,6 +89,7 @@ The progress bars work with all output formats and show:
 - Current analysis phase (commits, file ownership, metrics)
 - Visual progress bar with modern Unicode characters
 - Proper handling of long repository names
+- Progress indicators work even when output is redirected to files
 
 ### Repository Activity Statistics
 
@@ -98,11 +99,17 @@ The `--activity` / `-A` parameter provides powerful insights into repository dev
 # Show monthly activity statistics across repositories
 python gitinspector.py -A repo1 repo2 repo3
 
-# Show weekly activity with HTML bar charts
+# Show weekly activity with HTML charts
 python gitinspector.py -A -w -F html repo1 repo2 repo3 > activity_report.html
 
 # 🎯 Normalized per-contributor analysis (recommended!)
 python gitinspector.py -A --activity-normalize repo1 repo2 repo3
+
+# 🌟 Dual display: Show both raw and normalized statistics
+python gitinspector.py -A --activity-dual repo1 repo2 repo3
+
+# 📊 Choose chart type: line graphs (default) or bar charts
+python gitinspector.py -A --activity-chart=bar -F html repo1 repo2 repo3
 
 # Combine with other analysis options
 python gitinspector.py -A --activity-normalize -F html --since 2024-01-01 \
@@ -115,8 +122,11 @@ python gitinspector.py -A --activity-normalize -F html --since 2024-01-01 \
 - **Repository Comparison**: Side-by-side activity comparison
 - **Multiple Metrics**: Commits, line insertions, and deletions per repository
 - **🔥 Normalization**: `--activity-normalize` shows per-contributor productivity
-- **Beautiful Charts**: HTML output includes interactive bar graphs
+- **🌟 Dual Display**: `--activity-dual` shows both raw totals and normalized averages side-by-side
+- **📊 Chart Types**: Choose between line graphs (default) or bar charts with `--activity-chart`
+- **Beautiful Charts**: HTML output includes interactive, collapsible charts
 - **All Formats**: Text, HTML, JSON, and XML output supported
+- **Performance Optimized**: Automatically skips expensive analysis when only activity data is needed
 
 **Why Use Normalization?**
 
@@ -140,6 +150,35 @@ python gitinspector.py -A --activity-normalize repo1 repo2
 - Summary statistics table with repository totals
 - Responsive design with modern styling
 
+### Business Quarter Analysis
+
+The new `--quarter` option makes it easy to analyze specific business quarters without manual date calculations:
+
+```bash
+# Analyze Q2 2025 (April 1 - June 30, 2025)
+python gitinspector.py --quarter Q2-2025 -T -F html -f "**" repo1 repo2
+
+# Analyze Q1 2024 (January 1 - March 31, 2024)
+python gitinspector.py --quarter Q1-2024 -A --activity-normalize repo1 repo2
+
+# Combine with team configuration
+python gitinspector.py --quarter Q3-2025 --team-config team.json -A repo1 repo2
+```
+
+**Supported Quarter Formats:**
+- **Q1-YYYY**: January 1 - March 31
+- **Q2-YYYY**: April 1 - June 30
+- **Q3-YYYY**: July 1 - September 30
+- **Q4-YYYY**: October 1 - December 31
+
+**Examples:**
+- `Q1-2025` → Jan 1, 2025 - Mar 31, 2025
+- `Q2-2025` → Apr 1, 2025 - Jun 30, 2025
+- `Q3-2025` → Jul 1, 2025 - Sep 30, 2025
+- `Q4-2025` → Oct 1, 2025 - Dec 31, 2025
+
+This replaces the need to manually calculate and specify `--since` and `--until` dates for quarterly analysis.
+
 ### Team Configuration (Optional)
 To filter analysis to specific team members, create a JSON configuration file:
 
@@ -155,9 +194,9 @@ To filter analysis to specific team members, create a JSON configuration file:
 }
 ```
 
-### Comprehensive Example
-Here's a complete example that generates a full analysis report:
+### Comprehensive Examples
 
+#### Example 1: Full Team Analysis Report
 ```bash
 python gitinspector.py \
   -F html \
@@ -165,7 +204,7 @@ python gitinspector.py \
   --team-config team_config.json \
   -r -m -T -w \
   -f "**" \
-  ../my-repositoyr-parent-directory/my-repository/ > analysis_report.html
+  ../my-repository-parent-directory/my-repository/ > analysis_report.html
 ```
 
 **What this command does:**
@@ -175,25 +214,100 @@ python gitinspector.py \
 - `-m` - Include code metrics and violation reports
 - `-T` - Generate timeline analysis
 - `-w` - Show results in weeks instead of months
-- `-F` - output file type
+- `-F html` - Output in HTML format
 - `-f "**"` - Include all file types in analysis
 - `../my-repository/` - Path to the repository to analyze
 - `> analysis_report.html` - Save output to HTML file
 
+#### Example 2: Quarterly Activity Analysis
+```bash
+# Analyze Q2 2025 activity across multiple repositories
+python gitinspector.py \
+  --quarter Q2-2025 \
+  -A --activity-dual \
+  --activity-chart=line \
+  --team-config team.json \
+  -F html \
+  -f "**" \
+  ../frontend-repo ../backend-repo ../mobile-repo > q2_activity.html
+```
+
+**What this command does:**
+- `--quarter Q2-2025` - Analyze April 1 - June 30, 2025 (automatically sets dates)
+- `-A` - Enable activity statistics
+- `--activity-dual` - Show both raw totals and normalized per-contributor stats
+- `--activity-chart=line` - Use line graphs instead of bar charts
+- `--team-config team.json` - Filter to team members
+- `-F html` - HTML output format
+- `-f "**"` - Include all file types
+- Multiple repository paths for cross-repo analysis
+
+#### Example 3: Performance-Optimized Activity Analysis
+```bash
+# Fast activity analysis (skips expensive operations)
+python gitinspector.py \
+  -A --activity-normalize \
+  --since 2024-01-01 \
+  -F html \
+  repo1 repo2 repo3 > activity_report.html
+```
+
+**What this command does:**
+- `-A` - Activity mode only (automatically skips blame analysis for speed)
+- `--activity-normalize` - Show per-contributor productivity metrics
+- `--since 2024-01-01` - Analyze from January 1st, 2024 onwards
+- `-F html` - HTML output with interactive charts
+- Multiple repositories for comparison
+
+### Enhanced HTML Output
+
+The HTML output format has been significantly enhanced with modern features:
+
+**Interactive Charts:**
+- **Activity Charts**: Line graphs (default) or bar charts for repository activity
+- **Chart Type Selection**: Choose between line and bar charts with `--activity-chart`
+- **Collapsible Sections**: All report sections can be collapsed/expanded for better navigation
+- **Responsive Design**: Modern, mobile-friendly interface
+
+**Chart Features:**
+- **Line Charts**: Default option showing trends over time with one line per repository
+- **Bar Charts**: Alternative visualization showing period-by-period comparisons
+- **Interactive Legends**: Click to show/hide specific repositories
+- **Hover Information**: Detailed tooltips on chart elements
+
+**Navigation:**
+- **Collapsible Headers**: Click any section header to expand/collapse content
+- **Chart Collapsibles**: Individual charts can be collapsed independently
+- **Default State**: All sections start collapsed for cleaner initial view
+
 ### Output Formats
-- **HTML** (default): Rich, interactive reports with charts
+- **HTML**: Rich, interactive reports with charts and collapsible sections
 - **Plain Text**: Simple console output with `-f text`
 - **JSON**: Machine-readable format with `-f json`
 - **XML**: Structured data format with `-f xml`
 
-### Some of the features
-  * Shows cumulative work by each author in the history.
-  * Filters results by extension (default: java,c,cc,cpp,h,hh,hpp,py,glsl,rb,js,sql).
-  * Can display a statistical timeline analysis.
-  * Scans for all filetypes (by extension) found in the repository.
-  * Multi-threaded; uses multiple instances of git to speed up analysis when possible.
-  * Supports HTML, JSON, XML and plain text output (console).
-  * Can report violations of different code metrics.
+### Key Features
+
+**Core Analysis:**
+- **Multi-Repository Support**: Analyze multiple repositories simultaneously with aggregated statistics
+- **Author Statistics**: Shows cumulative work by each author in the history
+- **File Type Filtering**: Filters results by extension (default: java,c,cc,cpp,h,hh,hpp,py,glsl,rb,js,sql,tsx,ts,jsx,css,html)
+  **Note**: The default extensions now include modern web technologies like TypeScript (ts, tsx), React (jsx), and CSS/HTML
+- **Timeline Analysis**: Can display a statistical timeline analysis with `-T`
+- **File Type Discovery**: Scans for all filetypes (by extension) found in the repository
+- **Metrics Analysis**: Can report violations of different code metrics with `-m`
+
+**Performance & Optimization:**
+- **Multi-threaded**: Uses multiple instances of git to speed up analysis when possible
+- **Smart Analysis**: Automatically skips expensive operations when only activity data is needed
+- **Progress Tracking**: Real-time progress indicators for long-running analyses
+- **Memory Efficient**: Optimized for large repositories and multiple repository analysis
+
+**Advanced Features:**
+- **Team Filtering**: Filter results to specific team members with `--team-config`
+- **Date Ranges**: Analyze specific time periods with `--since`/`--until` or `--quarter`
+- **Exclusion Patterns**: Exclude specific files, authors, or commits with `-x`
+- **Localization**: Support for multiple languages with `-L`
 
 ### Example outputs
 Below are some example outputs for a number of famous open source projects. All the statistics were generated using the *"-HTlrm"* flags.
