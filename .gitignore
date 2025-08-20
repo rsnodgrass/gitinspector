@@ -8,3 +8,6 @@ node_modules
 *.tgz
 team_config.json
 venv/
+
+# Test repositories (permanent test fixtures)
+tests/test_repositories/
