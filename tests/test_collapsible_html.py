@@ -345,6 +345,52 @@ class TestChartCollapsibleHTML(GitInspectorTestCase):
         for js_snippet in required_chart_js:
             self.assertIn(js_snippet, header_content, f"Chart JavaScript snippet {js_snippet} not found in header")
     
+    def test_header_content_pairing_structure(self):
+        """Test that headers and content containers are properly paired."""
+        # Test the data-target approach for precise ID matching
+        mock_format = 'html'
+        
+        with patch('gitinspector.format.get_selected', return_value=mock_format):
+            old_stdout = sys.stdout
+            sys.stdout = StringIO()
+            
+            try:
+                # Create a simple mock that generates the expected structure
+                class TestCollapsibleOutput(outputable.Outputable):
+                    def output_html(self):
+                        print('<div>Test content</div>')
+                
+                test_output = TestCollapsibleOutput()
+                test_output.__class__.__name__ = 'TestOutput'
+                
+                outputable.output(test_output)
+                html_output = sys.stdout.getvalue()
+                
+            finally:
+                sys.stdout = old_stdout
+        
+        # Verify proper data-target and ID pairing
+        self.assertIn('data-target="test-section"', html_output)
+        self.assertIn('id="test-section"', html_output)
+        
+        # Verify structure: header immediately followed by content
+        lines = html_output.strip().split('\n')
+        header_line = None
+        content_line = None
+        
+        for i, line in enumerate(lines):
+            if 'collapsible-header' in line and 'data-target' in line:
+                header_line = i
+            elif 'id="test-section"' in line and 'collapsible-content' in line:
+                content_line = i
+                break
+        
+        self.assertIsNotNone(header_line, "Header not found")
+        self.assertIsNotNone(content_line, "Content container not found")
+        
+        # Content should come after header (allowing for closing tags)
+        self.assertGreater(content_line, header_line, "Content container should come after header")
+    
     def test_collapsible_preserves_functionality(self):
         """Test that collapsible wrapper doesn't break existing functionality."""
         # The collapsible wrapper should not interfere with:

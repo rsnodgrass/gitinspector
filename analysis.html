@@ -4209,21 +4209,25 @@ can just fix the size of their placeholders.
 					}
 				});
 
-				// Make sure the two pie charts use the same colors.
+				// Make sure the two pie charts use the same colors (if they exist).
+				try {
+					if (typeof changes_plot !== 'undefined' && changes_plot && typeof changes_plot.getData === 'function') {
+						var author_colors = {};
+						$.each(changes_plot.getData(), function(i, v) {
+							author_colors[v["label"]] = v["color"];
+						});
 
-				var author_colors = {};
-				$.each(changes_plot.getData(), function(i, v) {
-					author_colors[v["label"]] = v["color"];
-				});
-
-				$.each(blame_plot.getData(), function(i, v) {
-					if (author_colors[v["label"]] != undefined) {
-						v["color"] = author_colors[v["label"]];
+						if (typeof blame_plot !== 'undefined' && blame_plot && typeof blame_plot.getData === 'function') {
+							$.each(blame_plot.getData(), function(i, v) {
+								if (author_colors[v["label"]] != undefined) {
+									v["color"] = author_colors[v["label"]];
+								}
+							});
+							if (typeof blame_plot.setupGrid === 'function') { blame_plot.setupGrid(); }
+							if (typeof blame_plot.draw === 'function') { blame_plot.draw(); }
+						}
 					}
-				});
-
-				blame_plot.setupGrid();
-				blame_plot.draw();
+				} catch (e) { /* keep UI functional even if charts are missing */ }
 
 				// Color in metrics levels.
 
@@ -4255,25 +4259,41 @@ can just fix the size of their placeholders.
 					$(this).css("background-color", "rgb(" + rgb[0] + "," + rgb[1] + "," + rgb[2] + ")");
 				});
 
-				// Collapsible sections functionality
-				$('.collapsible-header').click(function() {
-					var content = $(this).next('.collapsible-content');
-					var icon = $(this).find('.collapse-icon');
+				// Universal collapsible functionality - handles both main sections and charts
+				$('.collapsible-header, .chart-collapsible-header').click(function() {
+					var content;
+					var icon;
 					
-					if (content.is(':visible')) {
-						content.slideUp(300);
-						icon.text('▶');
-						$(this).removeClass('expanded');
+					// Check if this uses data-target (new approach) or next sibling (legacy)
+					var targetId = $(this).data('target');
+					if (targetId) {
+						// Use data-target approach for precise ID matching
+						content = $('#' + targetId);
+						icon = $(this).find('.collapse-icon, .chart-collapse-icon');
 					} else {
-						content.slideDown(300);
-						icon.text('▼');
-						$(this).addClass('expanded');
+						// Fallback to next sibling approach
+						content = $(this).next('.collapsible-content');
+						icon = $(this).find('.collapse-icon');
+					}
+					
+					if (content.length > 0) {
+						if (content.is(':visible')) {
+							content.slideUp(300);
+							icon.text('▶');
+							$(this).removeClass('expanded');
+						} else {
+							content.slideDown(300);
+							icon.text('▼');
+							$(this).addClass('expanded');
+						}
 					}
 				});
 
 				// Initialize all sections as collapsed by default
 				$('.collapsible-content').hide();
 				$('.collapse-icon').text('▶');
+				$('.chart-collapsible-content').hide();
+				$('.chart-collapse-icon').text('▶');
 			});
 		</script>
 		<style type="text/css">
@@ -4378,7 +4398,7 @@ can just fix the size of their placeholders.
 			div.button:hover, div#responsibilities div.button:hover {
 				background-color: #eddede;
 				border: 1px solid #bbb;
-				cursor: hand;
+				cursor: pointer;
 			}
 			div#responsibilities div, div#responsibilities div div, div#metrics div, div#metrics div div {
 				min-height: 0px;
@@ -4488,6 +4508,56 @@ can just fix the size of their placeholders.
 				box-shadow: none;
 				-moz-box-shadow: none;
 			}
+			
+			/* Chart-specific collapsible styles */
+			.chart-collapsible-header {
+				cursor: pointer;
+				user-select: none;
+				-webkit-user-select: none;
+				-moz-user-select: none;
+				-ms-user-select: none;
+				background-color: #e8dede;
+				border: 1px solid #ccc;
+				border-radius: 6px;
+				margin: 10px 0;
+				padding: 12px 15px;
+				font-weight: bold;
+				font-size: 1.0em;
+				transition: background-color 0.3s ease;
+				position: relative;
+			}
+			
+			.chart-collapsible-header:hover {
+				background-color: #ede2e2;
+				border-color: #aaa;
+			}
+			
+			.chart-collapsible-header.expanded {
+				background-color: #f0e5e5;
+				border-bottom-left-radius: 0;
+				border-bottom-right-radius: 0;
+				border-bottom: 1px solid #ccc;
+			}
+			
+			.chart-collapse-icon {
+				position: absolute;
+				right: 15px;
+				top: 50%;
+				transform: translateY(-50%);
+				font-size: 1.1em;
+				color: #666;
+				transition: transform 0.3s ease;
+			}
+			
+			.chart-collapsible-content {
+				border: 1px solid #ccc;
+				border-top: none;
+				border-radius: 0 0 6px 6px;
+				margin: 0 0 10px 0;
+				padding: 15px;
+				background-color: #fafafa;
+				overflow: hidden;
+			}
 		</style>
 	</head>
 	<body>
@@ -4496,16 +4566,15 @@ can just fix the size of their placeholders.
 			<p>Statistical information for the repositories 'recall-api, otter-web' was gathered on 2025/08/19.<br>The output has been generated by <a href="https://github.com/ejwa/gitinspector">gitinspector</a> 0.5.0dev. The statistical analysis tool for git repositories.</p>
 		</div></div>
 
-<div class="collapsible-header" id="activity-section">
-    Repository Activity Over Time
-    <span class="collapse-icon">▶</span>
-</div>
-<div class="collapsible-content">
 <div class="box">
 <h4>Repository Activity Over Time</h4>
-<p>The following activity statistics show repository-level contributions over time by months. Raw statistics show absolute numbers.</p>
+<p>The following activity statistics show repository-level contributions over time by months. Shows both raw totals and per-contributor averages for comprehensive analysis.</p>
+<div class="chart-collapsible-header" data-target="commits-chart">
+    Commits (Total) by Repository
+    <span class="chart-collapse-icon">▶</span>
+</div>
+<div id="commits-chart" class="chart-collapsible-content" style="display: none;">
 <div class="activity-chart">
-<h5>Commits by Repository</h5>
 <div class="chart-container">
 <style>
 .activity-chart { margin: 20px 0; }
@@ -5255,8 +5324,769 @@ otter-web
 </div>
 </div>
 </div>
+</div>
+<div class="chart-collapsible-header" data-target="commits-per-contributor-chart">
+    Commits per Contributor by Repository
+    <span class="chart-collapse-icon">▶</span>
+</div>
+<div id="commits-per-contributor-chart" class="chart-collapsible-content" style="display: none;">
 <div class="activity-chart">
-<h5>Lines Added by Repository</h5>
+<div class="chart-container">
+<style>
+.activity-chart { margin: 20px 0; }
+.chart-container { margin: 10px 0; }
+.chart-bar { display: inline-block; margin: 2px; vertical-align: bottom; }
+.bar-group { margin: 10px 0; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
+.bar-label { font-size: 12px; text-align: center; margin-top: 5px; }
+.period-label { font-weight: bold; margin: 15px 0 10px 0; color: #2c3e50; }
+.repo-stats { display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0; }
+.repo-bar { flex: 1; min-width: 120px; text-align: center; }
+.bar-fill { height: 20px; border-radius: 3px; margin: 5px 0; position: relative; }
+.bar-text { font-size: 11px; color: white; line-height: 20px; font-weight: bold; }
+.legend { margin: 20px 0; }
+.legend-item { display: inline-block; margin: 5px 10px 5px 0; }
+.legend-color { display: inline-block; width: 16px; height: 16px; margin-right: 5px; vertical-align: middle; }
+</style>
+<div class="legend">
+<strong>Repositories:</strong>
+<span class="legend-item">
+<span class="legend-color" style="background-color: #3498db;"></span>
+recall-api
+</span>
+<span class="legend-item">
+<span class="legend-color" style="background-color: #e74c3c;"></span>
+otter-web
+</span>
+</div>
+<div class="period-label">2021-09</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 10.0%;">
+<span class="bar-text">2.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 10.0%;">
+<span class="bar-text">2.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2021-10</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 60.0%;">
+<span class="bar-text">12.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 60.0%;">
+<span class="bar-text">12.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2021-11</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 80.0%;">
+<span class="bar-text">16.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 80.0%;">
+<span class="bar-text">16.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2021-12</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 70.0%;">
+<span class="bar-text">14.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 70.0%;">
+<span class="bar-text">14.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2022-01</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 65.0%;">
+<span class="bar-text">13.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 65.0%;">
+<span class="bar-text">13.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2022-02</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 75.0%;">
+<span class="bar-text">15.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 75.0%;">
+<span class="bar-text">15.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2022-03</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 80.0%;">
+<span class="bar-text">16.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 80.0%;">
+<span class="bar-text">16.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2022-04</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 45.0%;">
+<span class="bar-text">9.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 45.0%;">
+<span class="bar-text">9.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2022-05</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 60.0%;">
+<span class="bar-text">12.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 60.0%;">
+<span class="bar-text">12.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2022-06</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 55.0%;">
+<span class="bar-text">11.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 55.0%;">
+<span class="bar-text">11.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2022-07</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 60.0%;">
+<span class="bar-text">12.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 60.0%;">
+<span class="bar-text">12.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2022-08</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 65.0%;">
+<span class="bar-text">13.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 65.0%;">
+<span class="bar-text">13.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2022-09</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 95.0%;">
+<span class="bar-text">19.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 95.0%;">
+<span class="bar-text">19.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2022-10</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 100.0%;">
+<span class="bar-text">20.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 100.0%;">
+<span class="bar-text">20.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2022-11</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 55.0%;">
+<span class="bar-text">11.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 55.0%;">
+<span class="bar-text">11.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2022-12</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 95.0%;">
+<span class="bar-text">19.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 95.0%;">
+<span class="bar-text">19.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2023-01</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 55.0%;">
+<span class="bar-text">11.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 55.0%;">
+<span class="bar-text">11.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2023-02</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 55.0%;">
+<span class="bar-text">11.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 55.0%;">
+<span class="bar-text">11.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2023-03</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 55.0%;">
+<span class="bar-text">11.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 55.0%;">
+<span class="bar-text">11.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2023-04</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 55.0%;">
+<span class="bar-text">11.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 55.0%;">
+<span class="bar-text">11.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2023-05</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 45.0%;">
+<span class="bar-text">9.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 45.0%;">
+<span class="bar-text">9.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2023-06</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 42.5%;">
+<span class="bar-text">8.5</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 42.5%;">
+<span class="bar-text">8.5</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2023-07</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 5.0%;">
+<span class="bar-text">1.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 5.0%;">
+<span class="bar-text">1.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2023-08</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 52.5%;">
+<span class="bar-text">10.5</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 52.5%;">
+<span class="bar-text">10.5</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2023-09</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 40.0%;">
+<span class="bar-text">8.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 40.0%;">
+<span class="bar-text">8.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2023-10</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 52.5%;">
+<span class="bar-text">10.5</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 52.5%;">
+<span class="bar-text">10.5</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2023-11</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 30.0%;">
+<span class="bar-text">6.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 30.0%;">
+<span class="bar-text">6.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2023-12</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 43.4%;">
+<span class="bar-text">8.7</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 43.4%;">
+<span class="bar-text">8.7</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2024-01</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 30.0%;">
+<span class="bar-text">6.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 30.0%;">
+<span class="bar-text">6.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2024-02</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 47.5%;">
+<span class="bar-text">9.5</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 47.5%;">
+<span class="bar-text">9.5</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2024-03</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 45.0%;">
+<span class="bar-text">9.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 45.0%;">
+<span class="bar-text">9.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2024-04</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 78.3%;">
+<span class="bar-text">15.7</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 78.3%;">
+<span class="bar-text">15.7</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2024-05</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 43.8%;">
+<span class="bar-text">8.8</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 43.8%;">
+<span class="bar-text">8.8</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2024-06</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 23.0%;">
+<span class="bar-text">4.6</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 23.0%;">
+<span class="bar-text">4.6</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2024-07</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 28.0%;">
+<span class="bar-text">5.6</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 28.0%;">
+<span class="bar-text">5.6</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2024-08</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 22.2%;">
+<span class="bar-text">4.4</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 22.2%;">
+<span class="bar-text">4.4</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2024-09</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 39.3%;">
+<span class="bar-text">7.9</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 39.3%;">
+<span class="bar-text">7.9</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2024-10</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 41.6%;">
+<span class="bar-text">8.3</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 41.6%;">
+<span class="bar-text">8.3</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2024-11</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 42.2%;">
+<span class="bar-text">8.4</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 42.2%;">
+<span class="bar-text">8.4</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2024-12</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 39.4%;">
+<span class="bar-text">7.9</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 39.4%;">
+<span class="bar-text">7.9</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2025-01</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 48.4%;">
+<span class="bar-text">9.7</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 48.4%;">
+<span class="bar-text">9.7</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2025-02</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 61.9%;">
+<span class="bar-text">12.4</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 61.9%;">
+<span class="bar-text">12.4</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2025-03</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 44.5%;">
+<span class="bar-text">8.9</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 44.5%;">
+<span class="bar-text">8.9</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2025-04</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 41.3%;">
+<span class="bar-text">8.3</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 41.3%;">
+<span class="bar-text">8.3</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2025-05</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 40.5%;">
+<span class="bar-text">8.1</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 40.5%;">
+<span class="bar-text">8.1</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2025-06</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 47.0%;">
+<span class="bar-text">9.4</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 47.0%;">
+<span class="bar-text">9.4</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2025-07</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 46.5%;">
+<span class="bar-text">9.3</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 46.5%;">
+<span class="bar-text">9.3</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2025-08</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 21.5%;">
+<span class="bar-text">4.3</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 21.5%;">
+<span class="bar-text">4.3</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="chart-collapsible-header" data-target="insertions-chart">
+    Lines Added (Total) by Repository
+    <span class="chart-collapse-icon">▶</span>
+</div>
+<div id="insertions-chart" class="chart-collapsible-content" style="display: none;">
+<div class="activity-chart">
 <div class="chart-container">
 <style>
 .activity-chart { margin: 20px 0; }
@@ -6006,8 +6836,769 @@ otter-web
 </div>
 </div>
 </div>
+</div>
+<div class="chart-collapsible-header" data-target="insertions-per-contributor-chart">
+    Lines Added per Contributor by Repository
+    <span class="chart-collapse-icon">▶</span>
+</div>
+<div id="insertions-per-contributor-chart" class="chart-collapsible-content" style="display: none;">
 <div class="activity-chart">
-<h5>Lines Deleted by Repository</h5>
+<div class="chart-container">
+<style>
+.activity-chart { margin: 20px 0; }
+.chart-container { margin: 10px 0; }
+.chart-bar { display: inline-block; margin: 2px; vertical-align: bottom; }
+.bar-group { margin: 10px 0; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
+.bar-label { font-size: 12px; text-align: center; margin-top: 5px; }
+.period-label { font-weight: bold; margin: 15px 0 10px 0; color: #2c3e50; }
+.repo-stats { display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0; }
+.repo-bar { flex: 1; min-width: 120px; text-align: center; }
+.bar-fill { height: 20px; border-radius: 3px; margin: 5px 0; position: relative; }
+.bar-text { font-size: 11px; color: white; line-height: 20px; font-weight: bold; }
+.legend { margin: 20px 0; }
+.legend-item { display: inline-block; margin: 5px 10px 5px 0; }
+.legend-color { display: inline-block; width: 16px; height: 16px; margin-right: 5px; vertical-align: middle; }
+</style>
+<div class="legend">
+<strong>Repositories:</strong>
+<span class="legend-item">
+<span class="legend-color" style="background-color: #3498db;"></span>
+recall-api
+</span>
+<span class="legend-item">
+<span class="legend-color" style="background-color: #e74c3c;"></span>
+otter-web
+</span>
+</div>
+<div class="period-label">2021-09</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 0.3%;">
+<span class="bar-text">14.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 0.3%;">
+<span class="bar-text">14.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2021-10</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 8.4%;">
+<span class="bar-text">408.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 8.4%;">
+<span class="bar-text">408.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2021-11</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 13.6%;">
+<span class="bar-text">656.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 13.6%;">
+<span class="bar-text">656.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2021-12</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 10.5%;">
+<span class="bar-text">508.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 10.5%;">
+<span class="bar-text">508.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2022-01</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 9.6%;">
+<span class="bar-text">465.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 9.6%;">
+<span class="bar-text">465.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2022-02</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 17.8%;">
+<span class="bar-text">860.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 17.8%;">
+<span class="bar-text">860.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2022-03</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 5.0%;">
+<span class="bar-text">242.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 5.0%;">
+<span class="bar-text">242.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2022-04</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 12.9%;">
+<span class="bar-text">625.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 12.9%;">
+<span class="bar-text">625.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2022-05</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 6.2%;">
+<span class="bar-text">298.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 6.2%;">
+<span class="bar-text">298.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2022-06</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 31.1%;">
+<span class="bar-text">1503.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 31.1%;">
+<span class="bar-text">1503.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2022-07</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 28.8%;">
+<span class="bar-text">1390.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 28.8%;">
+<span class="bar-text">1390.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2022-08</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 26.1%;">
+<span class="bar-text">1260.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 26.1%;">
+<span class="bar-text">1260.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2022-09</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 62.5%;">
+<span class="bar-text">3019.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 62.5%;">
+<span class="bar-text">3019.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2022-10</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 24.5%;">
+<span class="bar-text">1185.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 24.5%;">
+<span class="bar-text">1185.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2022-11</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 17.7%;">
+<span class="bar-text">854.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 17.7%;">
+<span class="bar-text">854.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2022-12</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 32.9%;">
+<span class="bar-text">1591.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 32.9%;">
+<span class="bar-text">1591.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2023-01</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 13.1%;">
+<span class="bar-text">635.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 13.1%;">
+<span class="bar-text">635.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2023-02</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 5.5%;">
+<span class="bar-text">264.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 5.5%;">
+<span class="bar-text">264.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2023-03</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 10.0%;">
+<span class="bar-text">481.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 10.0%;">
+<span class="bar-text">481.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2023-04</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 3.0%;">
+<span class="bar-text">143.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 3.0%;">
+<span class="bar-text">143.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2023-05</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 22.1%;">
+<span class="bar-text">1070.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 22.1%;">
+<span class="bar-text">1070.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2023-06</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 9.2%;">
+<span class="bar-text">444.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 9.2%;">
+<span class="bar-text">444.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2023-07</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 0.2%;">
+<span class="bar-text">9.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 0.2%;">
+<span class="bar-text">9.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2023-08</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 37.5%;">
+<span class="bar-text">1813.5</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 37.5%;">
+<span class="bar-text">1813.5</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2023-09</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 36.9%;">
+<span class="bar-text">1781.7</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 36.9%;">
+<span class="bar-text">1781.7</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2023-10</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 9.0%;">
+<span class="bar-text">435.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 9.0%;">
+<span class="bar-text">435.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2023-11</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 11.6%;">
+<span class="bar-text">562.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 11.6%;">
+<span class="bar-text">562.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2023-12</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 20.3%;">
+<span class="bar-text">981.7</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 20.3%;">
+<span class="bar-text">981.7</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2024-01</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 4.6%;">
+<span class="bar-text">224.5</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 4.6%;">
+<span class="bar-text">224.5</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2024-02</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 22.0%;">
+<span class="bar-text">1065.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 22.0%;">
+<span class="bar-text">1065.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2024-03</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 8.8%;">
+<span class="bar-text">424.3</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 8.8%;">
+<span class="bar-text">424.3</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2024-04</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 32.4%;">
+<span class="bar-text">1567.7</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 32.4%;">
+<span class="bar-text">1567.7</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2024-05</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 22.8%;">
+<span class="bar-text">1102.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 22.8%;">
+<span class="bar-text">1102.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2024-06</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 15.0%;">
+<span class="bar-text">725.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 15.0%;">
+<span class="bar-text">725.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2024-07</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 27.5%;">
+<span class="bar-text">1329.8</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 27.5%;">
+<span class="bar-text">1329.8</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2024-08</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 11.0%;">
+<span class="bar-text">532.2</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 11.0%;">
+<span class="bar-text">532.2</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2024-09</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 38.2%;">
+<span class="bar-text">1847.3</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 38.2%;">
+<span class="bar-text">1847.3</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2024-10</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 49.0%;">
+<span class="bar-text">2366.4</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 49.0%;">
+<span class="bar-text">2366.4</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2024-11</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 34.5%;">
+<span class="bar-text">1665.2</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 34.5%;">
+<span class="bar-text">1665.2</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2024-12</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 38.8%;">
+<span class="bar-text">1876.4</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 38.8%;">
+<span class="bar-text">1876.4</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2025-01</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 37.6%;">
+<span class="bar-text">1816.6</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 37.6%;">
+<span class="bar-text">1816.6</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2025-02</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 100.0%;">
+<span class="bar-text">4832.9</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 100.0%;">
+<span class="bar-text">4832.9</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2025-03</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 26.8%;">
+<span class="bar-text">1294.5</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 26.8%;">
+<span class="bar-text">1294.5</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2025-04</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 22.7%;">
+<span class="bar-text">1096.1</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 22.7%;">
+<span class="bar-text">1096.1</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2025-05</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 39.3%;">
+<span class="bar-text">1897.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 39.3%;">
+<span class="bar-text">1897.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2025-06</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 52.8%;">
+<span class="bar-text">2551.5</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 52.8%;">
+<span class="bar-text">2551.5</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2025-07</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 31.8%;">
+<span class="bar-text">1536.2</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 31.8%;">
+<span class="bar-text">1536.2</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2025-08</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 23.7%;">
+<span class="bar-text">1145.8</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 23.7%;">
+<span class="bar-text">1145.8</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="chart-collapsible-header" data-target="deletions-chart">
+    Lines Deleted (Total) by Repository
+    <span class="chart-collapse-icon">▶</span>
+</div>
+<div id="deletions-chart" class="chart-collapsible-content" style="display: none;">
+<div class="activity-chart">
 <div class="chart-container">
 <style>
 .activity-chart { margin: 20px 0; }
@@ -6757,26 +8348,788 @@ otter-web
 </div>
 </div>
 </div>
+</div>
+<div class="chart-collapsible-header" data-target="deletions-per-contributor-chart">
+    Lines Deleted per Contributor by Repository
+    <span class="chart-collapse-icon">▶</span>
+</div>
+<div id="deletions-per-contributor-chart" class="chart-collapsible-content" style="display: none;">
+<div class="activity-chart">
+<div class="chart-container">
+<style>
+.activity-chart { margin: 20px 0; }
+.chart-container { margin: 10px 0; }
+.chart-bar { display: inline-block; margin: 2px; vertical-align: bottom; }
+.bar-group { margin: 10px 0; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
+.bar-label { font-size: 12px; text-align: center; margin-top: 5px; }
+.period-label { font-weight: bold; margin: 15px 0 10px 0; color: #2c3e50; }
+.repo-stats { display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0; }
+.repo-bar { flex: 1; min-width: 120px; text-align: center; }
+.bar-fill { height: 20px; border-radius: 3px; margin: 5px 0; position: relative; }
+.bar-text { font-size: 11px; color: white; line-height: 20px; font-weight: bold; }
+.legend { margin: 20px 0; }
+.legend-item { display: inline-block; margin: 5px 10px 5px 0; }
+.legend-color { display: inline-block; width: 16px; height: 16px; margin-right: 5px; vertical-align: middle; }
+</style>
+<div class="legend">
+<strong>Repositories:</strong>
+<span class="legend-item">
+<span class="legend-color" style="background-color: #3498db;"></span>
+recall-api
+</span>
+<span class="legend-item">
+<span class="legend-color" style="background-color: #e74c3c;"></span>
+otter-web
+</span>
+</div>
+<div class="period-label">2021-09</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 0.1%;">
+<span class="bar-text">3.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 0.1%;">
+<span class="bar-text">3.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2021-10</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 5.4%;">
+<span class="bar-text">187.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 5.4%;">
+<span class="bar-text">187.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2021-11</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 11.4%;">
+<span class="bar-text">399.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 11.4%;">
+<span class="bar-text">399.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2021-12</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 4.8%;">
+<span class="bar-text">166.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 4.8%;">
+<span class="bar-text">166.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2022-01</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 8.2%;">
+<span class="bar-text">286.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 8.2%;">
+<span class="bar-text">286.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2022-02</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 14.5%;">
+<span class="bar-text">508.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 14.5%;">
+<span class="bar-text">508.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2022-03</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 5.9%;">
+<span class="bar-text">206.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 5.9%;">
+<span class="bar-text">206.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2022-04</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 10.7%;">
+<span class="bar-text">373.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 10.7%;">
+<span class="bar-text">373.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2022-05</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 4.7%;">
+<span class="bar-text">163.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 4.7%;">
+<span class="bar-text">163.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2022-06</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 13.2%;">
+<span class="bar-text">461.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 13.2%;">
+<span class="bar-text">461.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2022-07</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 11.1%;">
+<span class="bar-text">389.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 11.1%;">
+<span class="bar-text">389.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2022-08</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 18.5%;">
+<span class="bar-text">645.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 18.5%;">
+<span class="bar-text">645.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2022-09</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 29.7%;">
+<span class="bar-text">1036.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 29.7%;">
+<span class="bar-text">1036.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2022-10</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 17.0%;">
+<span class="bar-text">593.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 17.0%;">
+<span class="bar-text">593.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2022-11</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 9.0%;">
+<span class="bar-text">314.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 9.0%;">
+<span class="bar-text">314.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2022-12</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 18.4%;">
+<span class="bar-text">642.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 18.4%;">
+<span class="bar-text">642.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2023-01</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 10.3%;">
+<span class="bar-text">361.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 10.3%;">
+<span class="bar-text">361.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2023-02</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 4.1%;">
+<span class="bar-text">143.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 4.1%;">
+<span class="bar-text">143.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2023-03</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 5.1%;">
+<span class="bar-text">178.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 5.1%;">
+<span class="bar-text">178.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2023-04</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 2.0%;">
+<span class="bar-text">70.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 2.0%;">
+<span class="bar-text">70.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2023-05</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 3.3%;">
+<span class="bar-text">116.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 3.3%;">
+<span class="bar-text">116.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2023-06</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 5.6%;">
+<span class="bar-text">194.5</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 5.6%;">
+<span class="bar-text">194.5</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2023-07</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 0.2%;">
+<span class="bar-text">8.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 0.2%;">
+<span class="bar-text">8.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2023-08</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 24.1%;">
+<span class="bar-text">840.5</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 24.1%;">
+<span class="bar-text">840.5</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2023-09</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 39.0%;">
+<span class="bar-text">1363.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 39.0%;">
+<span class="bar-text">1363.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2023-10</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 6.8%;">
+<span class="bar-text">238.5</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 6.8%;">
+<span class="bar-text">238.5</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2023-11</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 6.9%;">
+<span class="bar-text">240.7</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 6.9%;">
+<span class="bar-text">240.7</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2023-12</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 21.0%;">
+<span class="bar-text">735.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 21.0%;">
+<span class="bar-text">735.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2024-01</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 4.7%;">
+<span class="bar-text">165.5</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 4.7%;">
+<span class="bar-text">165.5</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2024-02</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 11.7%;">
+<span class="bar-text">409.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 11.7%;">
+<span class="bar-text">409.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2024-03</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 7.0%;">
+<span class="bar-text">245.3</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 7.0%;">
+<span class="bar-text">245.3</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2024-04</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 15.5%;">
+<span class="bar-text">540.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 15.5%;">
+<span class="bar-text">540.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2024-05</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 13.6%;">
+<span class="bar-text">473.2</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 13.6%;">
+<span class="bar-text">473.2</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2024-06</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 4.6%;">
+<span class="bar-text">159.6</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 4.6%;">
+<span class="bar-text">159.6</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2024-07</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 10.5%;">
+<span class="bar-text">368.4</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 10.5%;">
+<span class="bar-text">368.4</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2024-08</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 6.3%;">
+<span class="bar-text">219.2</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 6.3%;">
+<span class="bar-text">219.2</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2024-09</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 19.0%;">
+<span class="bar-text">663.9</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 19.0%;">
+<span class="bar-text">663.9</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2024-10</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 18.6%;">
+<span class="bar-text">651.3</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 18.6%;">
+<span class="bar-text">651.3</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2024-11</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 41.2%;">
+<span class="bar-text">1437.2</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 41.2%;">
+<span class="bar-text">1437.2</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2024-12</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 32.8%;">
+<span class="bar-text">1145.3</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 32.8%;">
+<span class="bar-text">1145.3</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2025-01</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 39.2%;">
+<span class="bar-text">1370.4</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 39.2%;">
+<span class="bar-text">1370.4</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2025-02</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 100.0%;">
+<span class="bar-text">3492.5</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 100.0%;">
+<span class="bar-text">3492.5</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2025-03</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 19.3%;">
+<span class="bar-text">674.7</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 19.3%;">
+<span class="bar-text">674.7</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2025-04</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 10.2%;">
+<span class="bar-text">354.8</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 10.2%;">
+<span class="bar-text">354.8</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2025-05</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 35.1%;">
+<span class="bar-text">1225.0</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 35.1%;">
+<span class="bar-text">1225.0</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2025-06</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 19.9%;">
+<span class="bar-text">695.5</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 19.9%;">
+<span class="bar-text">695.5</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2025-07</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 25.5%;">
+<span class="bar-text">891.3</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 25.5%;">
+<span class="bar-text">891.3</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+<div class="period-label">2025-08</div>
+<div class="repo-stats">
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #3498db; width: 11.0%;">
+<span class="bar-text">382.9</span>
+</div>
+<div class="bar-label">recall-api</div>
+</div>
+<div class="repo-bar">
+<div class="bar-fill" style="background-color: #e74c3c; width: 11.0%;">
+<span class="bar-text">382.9</span>
+</div>
+<div class="bar-label">otter-web</div>
+</div>
+</div>
+</div>
+</div>
+</div>
 <h5>Summary Statistics</h5>
 <table class="git">
-<thead><tr><th>Repository</th><th>Total Contributors</th><th>Total Commits</th><th>Total Insertions</th><th>Total Deletions</th></tr></thead>
+<thead><tr><th>Repository</th><th>Contributors</th><th>Total Commits</th><th>Commits/Dev</th><th>Total Lines+</th><th>Lines+/Dev</th><th>Total Lines-</th><th>Lines-/Dev</th></tr></thead>
 <tbody>
 <tr>
 <td>recall-api</td>
 <td>16</td>
 <td>1580</td>
+<td>98.8</td>
 <td>278291</td>
+<td>17393.2</td>
 <td>143444</td>
+<td>8965.2</td>
 </tr>
 <tr>
 <td>otter-web</td>
 <td>16</td>
 <td>1580</td>
+<td>98.8</td>
 <td>278291</td>
+<td>17393.2</td>
 <td>143444</td>
+<td>8965.2</td>
 </tr>
 </tbody></table>
-</div>
 </div>
 	</body>
 </html>

@@ -157,21 +157,25 @@
 					}}
 				}});
 
-				// Make sure the two pie charts use the same colors.
+				// Make sure the two pie charts use the same colors (if they exist).
+				try {{
+					if (typeof changes_plot !== 'undefined' && changes_plot && typeof changes_plot.getData === 'function') {{
+						var author_colors = {{}};
+						$.each(changes_plot.getData(), function(i, v) {{
+							author_colors[v["label"]] = v["color"];
+						}});
 
-				var author_colors = {{}};
-				$.each(changes_plot.getData(), function(i, v) {{
-					author_colors[v["label"]] = v["color"];
-				}});
-
-				$.each(blame_plot.getData(), function(i, v) {{
-					if (author_colors[v["label"]] != undefined) {{
-						v["color"] = author_colors[v["label"]];
+						if (typeof blame_plot !== 'undefined' && blame_plot && typeof blame_plot.getData === 'function') {{
+							$.each(blame_plot.getData(), function(i, v) {{
+								if (author_colors[v["label"]] != undefined) {{
+									v["color"] = author_colors[v["label"]];
+								}}
+							}});
+							if (typeof blame_plot.setupGrid === 'function') {{ blame_plot.setupGrid(); }}
+							if (typeof blame_plot.draw === 'function') {{ blame_plot.draw(); }}
+						}}
 					}}
-				}});
-
-				blame_plot.setupGrid();
-				blame_plot.draw();
+				}} catch (e) {{ /* keep UI functional even if charts are missing */ }}
 
 				// Color in metrics levels.
 
@@ -203,36 +207,33 @@
 					$(this).css("background-color", "rgb(" + rgb[0] + "," + rgb[1] + "," + rgb[2] + ")");
 				}});
 
-				// Collapsible sections functionality
-				$('.collapsible-header').click(function() {{
-					var content = $(this).next('.collapsible-content');
-					var icon = $(this).find('.collapse-icon');
+				// Universal collapsible functionality - handles both main sections and charts
+				$('.collapsible-header, .chart-collapsible-header').click(function() {{
+					var content;
+					var icon;
 					
-					if (content.is(':visible')) {{
-						content.slideUp(300);
-						icon.text('▶');
-						$(this).removeClass('expanded');
-					}} else {{
-						content.slideDown(300);
-						icon.text('▼');
-						$(this).addClass('expanded');
-					}}
-				}});
-
-				// Chart-specific collapsible functionality
-				$('.chart-collapsible-header').click(function() {{
+					// Check if this uses data-target (new approach) or next sibling (legacy)
 					var targetId = $(this).data('target');
-					var content = $('#' + targetId);
-					var icon = $(this).find('.chart-collapse-icon');
-					
-					if (content.is(':visible')) {{
-						content.slideUp(300);
-						icon.text('▶');
-						$(this).removeClass('expanded');
+					if (targetId) {{
+						// Use data-target approach for precise ID matching
+						content = $('#' + targetId);
+						icon = $(this).find('.collapse-icon, .chart-collapse-icon');
 					}} else {{
-						content.slideDown(300);
-						icon.text('▼');
-						$(this).addClass('expanded');
+						// Fallback to next sibling approach
+						content = $(this).next('.collapsible-content');
+						icon = $(this).find('.collapse-icon');
+					}}
+					
+					if (content.length > 0) {{
+						if (content.is(':visible')) {{
+							content.slideUp(300);
+							icon.text('▶');
+							$(this).removeClass('expanded');
+						}} else {{
+							content.slideDown(300);
+							icon.text('▼');
+							$(this).addClass('expanded');
+						}}
 					}}
 				}});
 
@@ -345,7 +346,7 @@
 			div.button:hover, div#responsibilities div.button:hover {{
 				background-color: #eddede;
 				border: 1px solid #bbb;
-				cursor: hand;
+				cursor: pointer;
 			}}
 			div#responsibilities div, div#responsibilities div div, div#metrics div, div#metrics div div {{
 				min-height: 0px;
