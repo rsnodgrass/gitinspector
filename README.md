@@ -97,15 +97,16 @@ The `--activity` / `-A` parameter provides powerful insights into repository dev
 
 ```bash
 # Show monthly activity statistics across repositories
+# Now defaults to showing BOTH raw totals and normalized per-contributor stats
 python gitinspector.py -A repo1 repo2 repo3
 
 # Show weekly activity with HTML charts
 python gitinspector.py -A -w -F html repo1 repo2 repo3 > activity_report.html
 
-# 🎯 Normalized per-contributor analysis (recommended!)
+# 🎯 Normalized per-contributor analysis only
 python gitinspector.py -A --activity-normalize repo1 repo2 repo3
 
-# 🌟 Dual display: Show both raw and normalized statistics
+# 🌟 Dual display: Show both raw and normalized statistics (same as default -A)
 python gitinspector.py -A --activity-dual repo1 repo2 repo3
 
 # 📊 Choose chart type: line graphs (default) or bar charts
@@ -121,8 +122,8 @@ python gitinspector.py -A --activity-normalize -F html --since 2024-01-01 \
 - **Time-based Analysis**: Monthly or weekly breakdowns (`-w` for weeks)
 - **Repository Comparison**: Side-by-side activity comparison
 - **Multiple Metrics**: Commits, line insertions, and deletions per repository
-- **🔥 Normalization**: `--activity-normalize` shows per-contributor productivity
-- **🌟 Dual Display**: `--activity-dual` shows both raw totals and normalized averages side-by-side
+- **🔥 Normalization**: `--activity-normalize` shows per-contributor productivity only
+- **🌟 Dual Display**: `--activity-dual` shows both raw totals and normalized averages (now the default for `-A`)
 - **📊 Chart Types**: Choose between line graphs (default) or bar charts with `--activity-chart`
 - **Beautiful Charts**: HTML output includes interactive, collapsible charts
 - **All Formats**: Text, HTML, JSON, and XML output supported
@@ -133,10 +134,10 @@ python gitinspector.py -A --activity-normalize -F html --since 2024-01-01 \
 Raw activity statistics can be misleading when team sizes grow over time. The `--activity-normalize` feature solves this by showing **per-contributor averages**:
 
 ```bash
-# Raw stats: Shows total numbers (affected by team growth)
+# Default -A: Shows BOTH raw totals and normalized per-contributor stats
 python gitinspector.py -A repo1 repo2
 
-# Normalized stats: Shows per-developer averages (true productivity)
+# Normalized stats only: Shows per-developer averages (true productivity)
 python gitinspector.py -A --activity-normalize repo1 repo2
 ```
 
@@ -208,12 +209,15 @@ GitInspector uses a standardized `team_config.json` file for configuration. This
 
 ```bash
 # Analyze repositories from config, but include ALL contributors (no team filtering)
+# -A now defaults to showing both raw and normalized stats
 python gitinspector.py --config-repos -A --quarter Q2-2025 -F html -f "**" > analysis.html
 
 # Analyze current directory, but filter to TEAM MEMBERS ONLY
+# -A now defaults to showing both raw and normalized stats
 python gitinspector.py --team -A --quarter Q2-2025 -F html -f "**" > analysis.html
 
 # Use BOTH repositories and team filtering from config file
+# -A now defaults to showing both raw and normalized stats
 python gitinspector.py --team --config-repos -A --quarter Q2-2025 -F html -f "**" > analysis.html
 
 # Override config repositories with command line (still apply team filtering)
@@ -257,7 +261,7 @@ python gitinspector.py \
 # Analyze Q2 2025 activity across repositories from config file
 python gitinspector.py \
   --quarter Q2-2025 \
-  -A --activity-dual \
+  -A \
   --activity-chart=line \
   --team --config-repos \
   -F html \
@@ -266,8 +270,7 @@ python gitinspector.py \
 
 **What this command does:**
 - `--quarter Q2-2025` - Analyze April 1 - June 30, 2025 (automatically sets dates)
-- `-A` - Enable activity statistics
-- `--activity-dual` - Show both raw totals and normalized per-contributor stats
+- `-A` - Enable activity statistics (now defaults to showing both raw and normalized stats)
 - `--activity-chart=line` - Use line graphs instead of bar charts
 - `--team` - Filter to team members from `team_config.json`
 - `--config-repos` - Use repository paths from `team_config.json`
@@ -297,7 +300,7 @@ python gitinspector.py \
 python gitinspector.py \
   --config-repos \
   --quarter Q2-2025 \
-  -A --activity-dual \
+  -A \
   -F html \
   -f "**" > q2_all_contributors_analysis.html
 ```
@@ -305,7 +308,7 @@ python gitinspector.py \
 **What this command does:**
 - `--config-repos` - Read repository paths from `team_config.json`
 - `--quarter Q2-2025` - Analyze Q2 2025 (April 1 - June 30)
-- `-A --activity-dual` - Show both raw and normalized activity statistics
+- `-A` - Show both raw and normalized activity statistics (now the default)
 - `-F html` - HTML output format
 - `-f "**"` - Include all file types
 - **No `--team` flag** - Include ALL contributors, not just team members

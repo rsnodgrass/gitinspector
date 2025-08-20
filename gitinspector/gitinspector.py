@@ -422,6 +422,7 @@ def main():
                 run.useweeks = optval.get_boolean_argument(a)
             elif o == "-A":
                 run.activity = True
+                run.activity_dual = True  # Default to showing both raw and normalized stats
             elif o == "--activity":
                 run.activity = optval.get_boolean_argument(a)
             elif o == "--activity-normalize":

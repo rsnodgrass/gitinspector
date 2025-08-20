@@ -74,7 +74,7 @@ Boolean arguments can only be given to long options.
   -w, --weeks[=BOOL]             show all statistical information in weeks
                                    instead of in months
   -A, --activity[=BOOL]          show repository activity statistics over time
-                                   periods with charts for each repository
+                                   (defaults to showing both raw and normalized stats)
       --activity-normalize[=BOOL] normalize activity statistics by number of
                                    contributors per period (shows per-contributor
                                    productivity instead of absolute numbers)
