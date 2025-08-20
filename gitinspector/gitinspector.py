@@ -294,7 +294,7 @@ def main():
                 "quarter=",
                 "since=",
                 "grading:true",
-                "team-config=",
+                "team:true",
                 "config-repos:true",
                 "timeline:true",
                 "until=",
@@ -307,20 +307,22 @@ def main():
             ],
         )
 
-        # First, process team-config option to load repositories if needed
-        team_config_file = None
+        # Process configuration options
         use_config_repos = False
+        use_team_filtering = False
 
         for o, a in opts:
-            if o == "--team-config":
-                team_config_file = a
+            if o == "--team":
+                # Load team members and apply team filtering
+                use_team_filtering = optval.get_boolean_argument(a)
             elif o == "--config-repos":
+                # Load repositories without team filtering
                 use_config_repos = optval.get_boolean_argument(a)
 
-        # Load team config if specified
-        if team_config_file:
+        # Load team config if any of the options are specified
+        if use_config_repos or use_team_filtering:
             try:
-                teamconfig.load_team_config(team_config_file)
+                teamconfig.load_team_config("team_config.json", enable_team_filtering=use_team_filtering)
             except teamconfig.TeamConfigError as e:
                 print(sys.argv[0], "\b:", e.msg, file=sys.stderr)
                 sys.exit(1)

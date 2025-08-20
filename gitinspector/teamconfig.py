@@ -33,8 +33,13 @@ class TeamConfigError(Exception):
         self.msg = msg
 
 
-def load_team_config(config_file_path):
-    """Load team configuration from JSON file"""
+def load_team_config(config_file_path, enable_team_filtering=True):
+    """Load team configuration from JSON file
+
+    Args:
+        config_file_path: Path to the JSON config file
+        enable_team_filtering: Whether to enable team filtering (default: True)
+    """
     global __team_members__, __team_config_loaded__, __repositories__, __repositories_loaded__
 
     if not os.path.exists(config_file_path):
@@ -56,7 +61,7 @@ def load_team_config(config_file_path):
 
         # Store team members in global set for fast lookup
         __team_members__ = set(config["team"])
-        __team_config_loaded__ = True
+        __team_config_loaded__ = enable_team_filtering  # Only enable filtering if requested
 
         # Load repositories (optional)
         if "repositories" in config:

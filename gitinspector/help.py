@@ -62,11 +62,10 @@ Boolean arguments can only be given to long options.
                                    Q3: Jul 1 - Sep 30, Q4: Oct 1 - Dec 31
       --since=DATE               only show statistics for commits more recent
                                    than a specific date
-      --team-config=FILE         path to JSON file containing team member names;
-                                   only statistics for these team members will
-                                   be included in the output
-      --config-repos[=BOOL]      when enabled, read repository paths from the
-                                   team config file instead of command line;
+      --team[=BOOL]              load team members from team_config.json and
+                                   apply team filtering to include only these
+                                   team members in the output
+      --config-repos[=BOOL]      read repository paths from team_config.json;
                                    command line repositories override config
                                    file repositories when both are specified
   -T, --timeline[=BOOL]          show commit timeline, including author names

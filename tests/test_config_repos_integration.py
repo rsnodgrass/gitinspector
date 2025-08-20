@@ -86,7 +86,7 @@ class TestConfigReposIntegration(unittest.TestCase):
             json.dump(config_data, f)
         
         # Test that the config loads correctly
-        teamconfig.load_team_config(config_file)
+        teamconfig.load_team_config(config_file, enable_team_filtering=True)
         
         self.assertTrue(teamconfig.has_repositories())
         repositories = teamconfig.get_repositories()
@@ -108,7 +108,7 @@ class TestConfigReposIntegration(unittest.TestCase):
             json.dump(config_data, f)
         
         # Test that the config loads correctly but has no repositories
-        teamconfig.load_team_config(config_file)
+        teamconfig.load_team_config(config_file, enable_team_filtering=True)
         
         self.assertFalse(teamconfig.has_repositories())
         repositories = teamconfig.get_repositories()
@@ -126,7 +126,7 @@ class TestConfigReposIntegration(unittest.TestCase):
             json.dump(config_data, f)
         
         # Test that the config loads correctly
-        teamconfig.load_team_config(config_file)
+        teamconfig.load_team_config(config_file, enable_team_filtering=True)
         
         self.assertTrue(teamconfig.has_repositories())
         repositories = teamconfig.get_repositories()
@@ -145,7 +145,7 @@ class TestConfigReposIntegration(unittest.TestCase):
         
         # Test that loading fails with appropriate error
         with self.assertRaises(teamconfig.TeamConfigError) as context:
-            teamconfig.load_team_config(config_file)
+            teamconfig.load_team_config(config_file, enable_team_filtering=True)
         
         self.assertIn("repositories' must be a list", str(context.exception))
 
@@ -161,7 +161,7 @@ class TestConfigReposIntegration(unittest.TestCase):
         
         # Test that loading fails with appropriate error
         with self.assertRaises(teamconfig.TeamConfigError) as context:
-            teamconfig.load_team_config(config_file)
+            teamconfig.load_team_config(config_file, enable_team_filtering=True)
         
         self.assertIn("'team' key not found", str(context.exception))
 
@@ -173,7 +173,7 @@ class TestConfigReposIntegration(unittest.TestCase):
         
         # Test that loading fails with appropriate error
         with self.assertRaises(teamconfig.TeamConfigError) as context:
-            teamconfig.load_team_config(config_file)
+            teamconfig.load_team_config(config_file, enable_team_filtering=True)
         
         self.assertIn("empty file", str(context.exception))
 
@@ -185,7 +185,7 @@ class TestConfigReposIntegration(unittest.TestCase):
         
         # Test that loading fails with appropriate error
         with self.assertRaises(teamconfig.TeamConfigError) as context:
-            teamconfig.load_team_config(config_file)
+            teamconfig.load_team_config(config_file, enable_team_filtering=True)
         
         self.assertIn("Error parsing JSON file", str(context.exception))
 
@@ -195,7 +195,7 @@ class TestConfigReposIntegration(unittest.TestCase):
         
         # Test that loading fails with appropriate error
         with self.assertRaises(teamconfig.TeamConfigError) as context:
-            teamconfig.load_team_config(config_file)
+            teamconfig.load_team_config(config_file, enable_team_filtering=True)
         
         self.assertIn("not found", str(context.exception))
 
@@ -214,7 +214,7 @@ class TestConfigReposIntegration(unittest.TestCase):
             json.dump(config_data, f)
         
         # Test that the config loads correctly with relative paths
-        teamconfig.load_team_config(config_file)
+        teamconfig.load_team_config(config_file, enable_team_filtering=True)
         
         self.assertTrue(teamconfig.has_repositories())
         repositories = teamconfig.get_repositories()
@@ -239,7 +239,7 @@ class TestConfigReposIntegration(unittest.TestCase):
             json.dump(config_data, f)
         
         # Test that the config loads correctly with absolute paths
-        teamconfig.load_team_config(config_file)
+        teamconfig.load_team_config(config_file, enable_team_filtering=True)
         
         self.assertTrue(teamconfig.has_repositories())
         repositories = teamconfig.get_repositories()

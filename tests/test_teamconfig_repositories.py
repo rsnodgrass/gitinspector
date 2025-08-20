@@ -41,7 +41,7 @@ class TestTeamConfigRepositories(unittest.TestCase):
             config_file = f.name
         
         try:
-            teamconfig.load_team_config(config_file)
+            teamconfig.load_team_config(config_file, enable_team_filtering=True)
             
             # Check team members
             self.assertTrue(teamconfig.is_team_filtering_enabled())
@@ -72,7 +72,7 @@ class TestTeamConfigRepositories(unittest.TestCase):
             config_file = f.name
         
         try:
-            teamconfig.load_team_config(config_file)
+            teamconfig.load_team_config(config_file, enable_team_filtering=True)
             
             # Check team members
             self.assertTrue(teamconfig.is_team_filtering_enabled())
@@ -99,7 +99,7 @@ class TestTeamConfigRepositories(unittest.TestCase):
             config_file = f.name
         
         try:
-            teamconfig.load_team_config(config_file)
+            teamconfig.load_team_config(config_file, enable_team_filtering=True)
             
             # Check team members
             self.assertTrue(teamconfig.is_team_filtering_enabled())
@@ -125,7 +125,7 @@ class TestTeamConfigRepositories(unittest.TestCase):
         
         try:
             with self.assertRaises(teamconfig.TeamConfigError) as context:
-                teamconfig.load_team_config(config_file)
+                teamconfig.load_team_config(config_file, enable_team_filtering=True)
             
             self.assertIn("repositories' must be a list", str(context.exception))
             
@@ -144,7 +144,7 @@ class TestTeamConfigRepositories(unittest.TestCase):
             config_file = f.name
         
         try:
-            teamconfig.load_team_config(config_file)
+            teamconfig.load_team_config(config_file, enable_team_filtering=True)
             
             # Verify data is loaded
             self.assertTrue(teamconfig.is_team_filtering_enabled())
@@ -174,7 +174,7 @@ class TestTeamConfigRepositories(unittest.TestCase):
             config_file = f.name
         
         try:
-            teamconfig.load_team_config(config_file)
+            teamconfig.load_team_config(config_file, enable_team_filtering=True)
             
             repositories1 = teamconfig.get_repositories()
             repositories2 = teamconfig.get_repositories()
@@ -204,7 +204,7 @@ class TestTeamConfigRepositories(unittest.TestCase):
             config_file = f.name
         
         try:
-            teamconfig.load_team_config(config_file)
+            teamconfig.load_team_config(config_file, enable_team_filtering=True)
             
             team_members1 = teamconfig.get_team_members()
             team_members2 = teamconfig.get_team_members()
@@ -241,7 +241,7 @@ class TestTeamConfigRepositories(unittest.TestCase):
             config_file = f.name
         
         try:
-            teamconfig.load_team_config(config_file)
+            teamconfig.load_team_config(config_file, enable_team_filtering=True)
             
             # Should include team members
             self.assertTrue(teamconfig.is_team_member("John Doe"))

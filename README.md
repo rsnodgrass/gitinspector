@@ -179,8 +179,8 @@ python gitinspector.py --quarter Q3-2025 --team-config team.json -A repo1 repo2
 
 This replaces the need to manually calculate and specify `--since` and `--until` dates for quarterly analysis.
 
-### Team Configuration (Optional)
-To filter analysis to specific team members and optionally define repositories, create a JSON configuration file:
+### Configuration System
+GitInspector uses a standardized `team_config.json` file for configuration. This file can contain both team member definitions and repository paths:
 
 **team_config.json:**
 ```json
@@ -200,25 +200,32 @@ To filter analysis to specific team members and optionally define repositories, 
 }
 ```
 
-**Repository Management with `--config-repos`:**
-Instead of typing repository paths repeatedly, you can store them in your config file and use the `--config-repos` flag:
+**Configuration Flags:**
+
+- **`--team`**: Apply team filtering (include only team members from `team_config.json`)
+- **`--config-repos`**: Use repository paths from `team_config.json`
+- **Combine both flags**: Use both repositories and team filtering together
 
 ```bash
-# Use repositories from config file
-python gitinspector.py --config-repos --team-config team_config.json -A --quarter Q2-2025 -F html -f "**" > analysis.html
+# Analyze repositories from config, but include ALL contributors (no team filtering)
+python gitinspector.py --config-repos -A --quarter Q2-2025 -F html -f "**" > analysis.html
 
-# Command line repositories override config repositories
-python gitinspector.py --config-repos --team-config team_config.json -A --quarter Q2-2025 -F html -f "**" ../different-repo > analysis.html
+# Analyze current directory, but filter to TEAM MEMBERS ONLY
+python gitinspector.py --team -A --quarter Q2-2025 -F html -f "**" > analysis.html
 
-# Use only command line repositories (existing behavior)
-python gitinspector.py --team-config team_config.json -A --quarter Q2-2025 -F html -f "**" ../recall-api ../otter-web > analysis.html
+# Use BOTH repositories and team filtering from config file
+python gitinspector.py --team --config-repos -A --quarter Q2-2025 -F html -f "**" > analysis.html
+
+# Override config repositories with command line (still apply team filtering)
+python gitinspector.py --team --config-repos -A --quarter Q2-2025 -F html -f "**" ../different-repo > analysis.html
 ```
 
 **Benefits:**
-- **Convenience**: No need to type repository paths repeatedly
-- **Flexibility**: Command line repositories always override config repositories
-- **Team Consistency**: Share the same repository list across team members
-- **Maintenance**: Update repository list in one place
+- **🎯 Precise Control**: Choose exactly what you want - repositories, team filtering, or both
+- **🚀 Convenience**: No need to type repository paths or team members repeatedly
+- **⚡ Flexible**: Mix and match config options with command line overrides
+- **👥 Team Consistency**: Share the same configuration across team members
+- **🔧 Maintenance**: Update team and repository lists in one place
 
 ### Comprehensive Examples
 
@@ -247,15 +254,14 @@ python gitinspector.py \
 
 #### Example 2: Quarterly Activity Analysis
 ```bash
-# Analyze Q2 2025 activity across multiple repositories
+# Analyze Q2 2025 activity across repositories from config file
 python gitinspector.py \
   --quarter Q2-2025 \
   -A --activity-dual \
   --activity-chart=line \
-  --team-config team.json \
+  --team --config-repos \
   -F html \
-  -f "**" \
-  ../frontend-repo ../backend-repo ../mobile-repo > q2_activity.html
+  -f "**" > q2_activity.html
 ```
 
 **What this command does:**
@@ -263,10 +269,10 @@ python gitinspector.py \
 - `-A` - Enable activity statistics
 - `--activity-dual` - Show both raw totals and normalized per-contributor stats
 - `--activity-chart=line` - Use line graphs instead of bar charts
-- `--team-config team.json` - Filter to team members
+- `--team` - Filter to team members from `team_config.json`
+- `--config-repos` - Use repository paths from `team_config.json`
 - `-F html` - HTML output format
 - `-f "**"` - Include all file types
-- Multiple repository paths for cross-repo analysis
 
 #### Example 3: Performance-Optimized Activity Analysis
 ```bash
@@ -285,26 +291,43 @@ python gitinspector.py \
 - `-F html` - HTML output with interactive charts
 - Multiple repositories for comparison
 
-#### Example 4: Config-Based Repository Analysis
+#### Example 4: Repositories Only (No Team Filtering)
 ```bash
-# Use repositories from config file for convenience
+# Use repositories from config file but analyze ALL contributors
 python gitinspector.py \
   --config-repos \
-  --team-config team_config.json \
   --quarter Q2-2025 \
   -A --activity-dual \
   -F html \
-  -f "**" > q2_team_analysis.html
+  -f "**" > q2_all_contributors_analysis.html
 ```
 
 **What this command does:**
-- `--config-repos` - Read repository paths from team config file
-- `--team-config team_config.json` - Use team filtering and repository list from config
+- `--config-repos` - Read repository paths from `team_config.json`
 - `--quarter Q2-2025` - Analyze Q2 2025 (April 1 - June 30)
 - `-A --activity-dual` - Show both raw and normalized activity statistics
 - `-F html` - HTML output format
 - `-f "**"` - Include all file types
-- No need to specify repositories on command line
+- **No `--team` flag** - Include ALL contributors, not just team members
+
+#### Example 5: Team Filtering Only
+```bash
+# Filter to team members but analyze current directory
+python gitinspector.py \
+  --team \
+  --quarter Q2-2025 \
+  -A --activity-normalize \
+  -F html \
+  -f "**" > q2_team_only_analysis.html
+```
+
+**What this command does:**
+- `--team` - Apply team filtering from `team_config.json`
+- `--quarter Q2-2025` - Analyze Q2 2025 (April 1 - June 30)
+- `-A --activity-normalize` - Show normalized activity statistics
+- `-F html` - HTML output format
+- `-f "**"` - Include all file types
+- **No `--config-repos` flag** - Analyze current directory, not config repositories
 
 ### Enhanced HTML Output
 
@@ -351,8 +374,9 @@ The HTML output format has been significantly enhanced with modern features:
 - **Memory Efficient**: Optimized for large repositories and multiple repository analysis
 
 **Advanced Features:**
-- **Team Filtering**: Filter results to specific team members with `--team-config`
+- **Team Filtering**: Filter results to specific team members with `--team`
 - **Repository Management**: Store repository paths in config files with `--config-repos`
+- **Flexible Configuration**: Use standardized `team_config.json` for team and repository definitions
 - **Date Ranges**: Analyze specific time periods with `--since`/`--until` or `--quarter`
 - **Exclusion Patterns**: Exclude specific files, authors, or commits with `-x`
 - **Localization**: Support for multiple languages with `-L`
