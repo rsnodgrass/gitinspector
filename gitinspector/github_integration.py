@@ -171,15 +171,39 @@ class GitHubIntegration:
 
     def get_pr_reviews(self, owner: str, repo: str, pr_number: int) -> List[Dict]:
         """Get reviews for a specific pull request."""
-        return self._make_authenticated_request(owner, repo, f"pulls/{pr_number}/reviews")
+        try:
+            return self._make_authenticated_request(owner, repo, f"pulls/{pr_number}/reviews")
+        except GitHubIntegrationError as e:
+            if "404" in str(e):
+                # No reviews exist for this PR - this is normal
+                return []
+            else:
+                # Re-raise other errors
+                raise
 
     def get_pr_comments(self, owner: str, repo: str, pr_number: int) -> List[Dict]:
         """Get comments for a specific pull request."""
-        return self._make_authenticated_request(owner, repo, f"pulls/{pr_number}/comments")
+        try:
+            return self._make_authenticated_request(owner, repo, f"pulls/{pr_number}/comments")
+        except GitHubIntegrationError as e:
+            if "404" in str(e):
+                # No comments exist for this PR - this is normal
+                return []
+            else:
+                # Re-raise other errors
+                raise
 
     def get_pr_review_comments(self, owner: str, repo: str, pr_number: int) -> List[Dict]:
         """Get review comments for a specific pull request."""
-        return self._make_authenticated_request(owner, repo, f"pulls/{pr_number}/reviews/comments")
+        try:
+            return self._make_authenticated_request(owner, repo, f"pulls/{pr_number}/reviews/comments")
+        except GitHubIntegrationError as e:
+            if "404" in str(e):
+                # No review comments exist for this PR - this is normal
+                return []
+            else:
+                # Re-raise other errors
+                raise
 
     def analyze_repository_prs(self, owner: str, repo: str, since: str = None) -> Dict:
         """
@@ -210,7 +234,12 @@ class GitHubIntegration:
             "comment_stats": {},
         }
 
-        for pr in prs:
+        total_prs = len(prs)
+        for i, pr in enumerate(prs, 1):
+            # Show progress every 10 PRs or for the last one
+            if i % 10 == 0 or i == total_prs:
+                print(f"  Processing PR {i}/{total_prs} ({(i/total_prs)*100:.1f}%)", file=os.sys.stderr)
+            
             # Basic PR info
             if pr["state"] == "open":
                 analysis["open_prs"] += 1
@@ -238,39 +267,34 @@ class GitHubIntegration:
             if pr["merged_at"]:
                 analysis["user_stats"][author]["prs_merged"] += 1
 
-            # Get reviews and comments
-            try:
-                reviews = self.get_pr_reviews(owner, repo, pr["number"])
-                comments = self.get_pr_comments(owner, repo, pr["number"])
-                review_comments = self.get_pr_review_comments(owner, repo, pr["number"])
+            # Get reviews and comments (now handled gracefully by the updated methods)
+            reviews = self.get_pr_reviews(owner, repo, pr["number"])
+            comments = self.get_pr_comments(owner, repo, pr["number"])
+            review_comments = self.get_pr_review_comments(owner, repo, pr["number"])
 
-                # Review statistics
-                for review in reviews:
-                    reviewer = review["user"]["login"]
-                    if reviewer not in analysis["review_stats"]:
-                        analysis["review_stats"][reviewer] = {"reviews_given": 0, "comments_given": 0}
+            # Review statistics
+            for review in reviews:
+                reviewer = review["user"]["login"]
+                if reviewer not in analysis["review_stats"]:
+                    analysis["review_stats"][reviewer] = {"reviews_given": 0, "comments_given": 0}
 
-                    analysis["review_stats"][reviewer]["reviews_given"] += 1
+                analysis["review_stats"][reviewer]["reviews_given"] += 1
 
-                # Comment statistics
-                all_comments = comments + review_comments
-                for comment in all_comments:
-                    commenter = comment["user"]["login"]
-                    if commenter not in analysis["comment_stats"]:
-                        analysis["comment_stats"][commenter] = {"comments_given": 0, "comments_received": 0}
+            # Comment statistics
+            all_comments = comments + review_comments
+            for comment in all_comments:
+                commenter = comment["user"]["login"]
+                if commenter not in analysis["comment_stats"]:
+                    analysis["comment_stats"][commenter] = {"comments_given": 0, "comments_received": 0}
 
-                    analysis["comment_stats"][commenter]["comments_given"] += 1
-                    analysis["user_stats"][author]["total_comments_received"] += 1
+                analysis["comment_stats"][commenter]["comments_given"] += 1
+                analysis["user_stats"][author]["total_comments_received"] += 1
 
-                # Count reviews received
-                analysis["user_stats"][author]["total_reviews_received"] += len(reviews)
+            # Count reviews received
+            analysis["user_stats"][author]["total_reviews_received"] += len(reviews)
 
-                # Rate limiting
-                time.sleep(0.1)
-
-            except Exception as e:
-                print(f"Warning: Could not fetch details for PR #{pr['number']}: {str(e)}", file=os.sys.stderr)
-                continue
+                        # Rate limiting - be respectful to GitHub API
+            time.sleep(0.1)
 
         # Calculate averages
         if analysis["pr_durations"]:
