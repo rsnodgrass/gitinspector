@@ -82,6 +82,8 @@ Boolean arguments can only be given to long options.
                                    statistics side-by-side for comprehensive analysis
       --activity-chart=TYPE      select activity chart type in HTML output
                                    TYPE can be 'line' (default) or 'bar'
+      --github[=BOOL]            analyze GitHub pull requests and reviews
+                                   (requires GitHub App credentials in environment)
   -x, --exclude=PATTERN          an exclusion pattern describing the file
                                    paths, revisions, revisions with certain
                                    commit messages, author names or author

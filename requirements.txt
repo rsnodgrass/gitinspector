@@ -1,0 +1,14 @@
+# Core dependencies for GitInspector
+# These are required for the new GitHub integration feature
+
+# HTTP requests for GitHub API
+requests>=2.25.0
+
+# JWT token creation for GitHub App authentication
+PyJWT>=2.0.0
+
+# Cryptography for private key handling
+cryptography>=3.3.0
+
+# Note: These are additional dependencies for GitHub integration
+# The core GitInspector functionality works without these

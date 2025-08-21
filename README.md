@@ -181,7 +181,7 @@ python gitinspector.py --quarter Q3-2025 --team-config team.json -A repo1 repo2
 This replaces the need to manually calculate and specify `--since` and `--until` dates for quarterly analysis.
 
 ### Configuration System
-GitInspector uses a standardized `team_config.json` file for configuration. This file can contain both team member definitions and repository paths:
+GitInspector uses a standardized `team_config.json` file for configuration. This file can contain team member definitions, local repository paths, and GitHub repository references:
 
 **team_config.json:**
 ```json
@@ -192,11 +192,17 @@ GitInspector uses a standardized `team_config.json` file for configuration. This
     "alice.johnson",
     "bob.wilson"
   ],
-  "_comment_repos": "optional: list of repository paths to analyze when using --config-repos",
+  "_comment_repos": "optional: list of local repository paths to analyze when using --config-repos",
   "repositories": [
     "../recall-api",
     "../otter-web",
     "/path/to/other/repo"
+  ],
+  "_comment_github": "optional: list of GitHub repositories (owner/repo) to analyze when using --github",
+  "github_repositories": [
+    "company/recall-api",
+    "company/otter-web",
+    "company/other-repo"
   ]
 }
 ```
@@ -331,6 +337,51 @@ python gitinspector.py \
 - `-F html` - HTML output format
 - `-f "**"` - Include all file types
 - **No `--config-repos` flag** - Analyze current directory, not config repositories
+
+### GitHub Integration
+
+GitInspector now supports GitHub integration to analyze Pull Request data and team collaboration metrics:
+
+**Features:**
+- **PR Duration Analysis**: Track how long PRs stay open from creation to merge
+- **Review Metrics**: Count reviews given and received per team member
+- **Comment Analytics**: Track comments given on others' PRs and received on your own
+- **Team Collaboration Insights**: Understand review patterns and feedback cycles
+
+**Setup:**
+1. **Create GitHub App**: Set up a GitHub App with repository access permissions
+2. **Environment Configuration**: Set credentials in environment variables:
+   ```bash
+   export GITHUB_APP_ID=your_app_id
+   export GITHUB_PRIVATE_KEY_PATH=/path/to/private_key.pem
+   # OR
+   export GITHUB_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----"
+   ```
+3. **Configuration File**: Add GitHub repositories to `team_config.json`:
+   ```json
+   {
+     "github_repositories": ["owner/repo1", "owner/repo2"]
+   }
+   ```
+
+**Usage:**
+```bash
+# Analyze GitHub PRs for repositories in config
+python gitinspector.py --github -F html -f "**" > github_analysis.html
+
+# Combine with local repository analysis
+python gitinspector.py --github --config-repos -F html -f "**" > combined_analysis.html
+
+# Team filtering with GitHub analysis
+python gitinspector.py --team --github -F html -f "**" > team_github_analysis.html
+```
+
+**Output Includes:**
+- **Overall Statistics**: Total PRs, reviews, comments across all repositories
+- **Repository Breakdown**: Per-repository PR metrics and duration analysis
+- **User Statistics**: PR creation, merge rates, feedback received
+- **Review Statistics**: Reviews given, comments provided
+- **Comment Statistics**: Engagement metrics for team collaboration
 
 ### Enhanced HTML Output
 

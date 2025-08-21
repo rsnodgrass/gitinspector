@@ -25,6 +25,8 @@ __team_members__ = set()
 __team_config_loaded__ = False
 __repositories__ = []
 __repositories_loaded__ = False
+__github_repositories__ = []
+__github_repositories_loaded__ = False
 
 
 class TeamConfigError(Exception):
@@ -40,7 +42,7 @@ def load_team_config(config_file_path, enable_team_filtering=True):
         config_file_path: Path to the JSON config file
         enable_team_filtering: Whether to enable team filtering (default: True)
     """
-    global __team_members__, __team_config_loaded__, __repositories__, __repositories_loaded__
+    global __team_members__, __team_config_loaded__, __repositories__, __repositories_loaded__, __github_repositories__, __github_repositories_loaded__
 
     if not os.path.exists(config_file_path):
         raise TeamConfigError("Team config file not found: {0}".format(config_file_path))
@@ -72,9 +74,25 @@ def load_team_config(config_file_path, enable_team_filtering=True):
 
             __repositories__ = config["repositories"]
             __repositories_loaded__ = True
+
+        # Load GitHub repositories (optional)
+        if "github_repositories" in config:
+            if not isinstance(config["github_repositories"], list):
+                raise TeamConfigError(
+                    "Invalid team config: 'github_repositories' must be a list in {0}".format(config_file_path)
+                )
+
+            __github_repositories__ = config["github_repositories"]
+            __github_repositories_loaded__ = True
+
+        # Print summary
+        repo_count = len(__repositories__) if __repositories_loaded__ else 0
+        github_repo_count = len(__github_repositories__) if __github_repositories_loaded__ else 0
+
+        if repo_count > 0 or github_repo_count > 0:
             print(
-                "Loaded team config with {0} members and {1} repositories from {2}".format(
-                    len(__team_members__), len(__repositories__), config_file_path
+                "Loaded team config with {0} members, {1} repositories, and {2} GitHub repositories from {3}".format(
+                    len(__team_members__), repo_count, github_repo_count, config_file_path
                 )
             )
         else:
@@ -129,8 +147,20 @@ def has_repositories():
 
 def clear_team_config():
     """Clear loaded team configuration"""
-    global __team_members__, __team_config_loaded__, __repositories__, __repositories_loaded__
+    global __team_members__, __team_config_loaded__, __repositories__, __repositories_loaded__, __github_repositories__, __github_repositories_loaded__
     __team_members__ = set()
     __team_config_loaded__ = False
     __repositories__ = []
     __repositories_loaded__ = False
+    __github_repositories__ = []
+    __github_repositories_loaded__ = False
+
+
+def get_github_repositories():
+    """Get list of GitHub repositories from config file."""
+    return __github_repositories__.copy()
+
+
+def has_github_repositories():
+    """Check if GitHub repositories are loaded from config file."""
+    return __github_repositories_loaded__

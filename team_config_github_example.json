@@ -1,0 +1,17 @@
+{
+  "team": [
+    "john.doe@company.com",
+    "jane.smith@company.com",
+    "alice.johnson",
+    "bob.wilson"
+  ],
+  "repositories": [
+    "../recall-api",
+    "../otter-web"
+  ],
+  "github_repositories": [
+    "company/recall-api",
+    "company/otter-web",
+    "company/other-repo"
+  ]
+}

@@ -68,6 +68,7 @@ class Runner(object):
         self.activity_normalize = False
         self.activity_dual = False
         self.activity_chart_type = "line"  # 'line' (default) or 'bar'
+        self.github = False
 
     def _show_repo_progress(self, current_repo, total_repos, repo_name, progress_percent, status=""):
         """Show dynamic progress bar for repository processing"""
@@ -210,6 +211,39 @@ class Runner(object):
                         activity_data, self.activity_normalize, self.activity_dual, self.activity_chart_type
                     )
                 )
+
+            # GitHub analysis in activity-only mode
+            if self.github:
+                try:
+                    from . import teamconfig
+                    from .github_integration import GitHubIntegration, load_github_config
+
+                    if teamconfig.has_github_repositories():
+                        github_repos = teamconfig.get_github_repositories()
+                        print(f"Analyzing {len(github_repos)} GitHub repositories...", file=sys.stderr)
+
+                        # Load GitHub configuration
+                        app_id, private_key = load_github_config()
+                        github_integration = GitHubIntegration(
+                            app_id,
+                            private_key_path=private_key if os.path.exists(private_key) else None,
+                            private_key_content=private_key if not os.path.exists(private_key) else None,
+                        )
+
+                        # Analyze GitHub repositories
+                        github_data = github_integration.analyze_multiple_repositories(github_repos)
+
+                        # Output GitHub analysis
+                        from .output.githuboutput import GitHubOutput
+
+                        outputable.output(GitHubOutput(github_data))
+                    else:
+                        print(
+                            "Warning: --github specified but no GitHub repositories found in config file",
+                            file=sys.stderr,
+                        )
+                except Exception as e:
+                    print(f"Error during GitHub analysis: {str(e)}", file=sys.stderr)
         else:
             # Standard mode: show requested outputs
             outputable.output(ChangesOutput(summed_changes))
@@ -240,6 +274,39 @@ class Runner(object):
                             activity_data, self.activity_normalize, self.activity_dual, self.activity_chart_type
                         )
                     )
+
+                # GitHub analysis
+                if self.github:
+                    try:
+                        from . import teamconfig
+                        from .github_integration import GitHubIntegration, load_github_config
+
+                        if teamconfig.has_github_repositories():
+                            github_repos = teamconfig.get_github_repositories()
+                            print(f"Analyzing {len(github_repos)} GitHub repositories...", file=sys.stderr)
+
+                            # Load GitHub configuration
+                            app_id, private_key = load_github_config()
+                            github_integration = GitHubIntegration(
+                                app_id,
+                                private_key_path=private_key if os.path.exists(private_key) else None,
+                                private_key_content=private_key if not os.path.exists(private_key) else None,
+                            )
+
+                            # Analyze GitHub repositories
+                            github_data = github_integration.analyze_multiple_repositories(github_repos)
+
+                            # Output GitHub analysis
+                            from .output.githuboutput import GitHubOutput
+
+                            outputable.output(GitHubOutput(github_data))
+                        else:
+                            print(
+                                "Warning: --github specified but no GitHub repositories found in config file",
+                                file=sys.stderr,
+                            )
+                    except Exception as e:
+                        print(f"Error during GitHub analysis: {str(e)}", file=sys.stderr)
 
         format.output_footer()
         os.chdir(previous_directory)
@@ -304,6 +371,7 @@ def main():
                 "activity-normalize:true",
                 "activity-dual:true",
                 "activity-chart=",
+                "github:true",
             ],
         )
 
@@ -434,6 +502,8 @@ def main():
                 if chart not in ("line", "bar"):
                     raise optval.InvalidOptionArgument("--activity-chart must be 'line' or 'bar'")
                 run.activity_chart_type = chart
+            elif o == "--github":
+                run.github = optval.get_boolean_argument(a)
             elif o in ("-x", "--exclude"):
                 if clear_x_on_next_pass:
                     clear_x_on_next_pass = False
