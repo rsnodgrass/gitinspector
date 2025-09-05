@@ -239,7 +239,7 @@ class GitHubIntegration:
             # Show progress every 10 PRs or for the last one
             if i % 10 == 0 or i == total_prs:
                 print(f"  Processing PR {i}/{total_prs} ({(i/total_prs)*100:.1f}%)", file=os.sys.stderr)
-            
+
             # Basic PR info
             if pr["state"] == "open":
                 analysis["open_prs"] += 1
@@ -293,7 +293,7 @@ class GitHubIntegration:
             # Count reviews received
             analysis["user_stats"][author]["total_reviews_received"] += len(reviews)
 
-                        # Rate limiting - be respectful to GitHub API
+            # Rate limiting - be respectful to GitHub API
             time.sleep(0.1)
 
         # Calculate averages
