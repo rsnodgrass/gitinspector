@@ -84,6 +84,8 @@ Boolean arguments can only be given to long options.
                                    TYPE can be 'line' (default) or 'bar'
       --github[=BOOL]            analyze GitHub pull requests and reviews
                                    (requires GitHub App credentials in environment)
+      --no-collapsible[=BOOL]    disable collapsible sections in HTML output;
+                                   show all content expanded by default
   -x, --exclude=PATTERN          an exclusion pattern describing the file
                                    paths, revisions, revisions with certain
                                    commit messages, author names or author

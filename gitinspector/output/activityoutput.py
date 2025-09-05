@@ -21,7 +21,7 @@
 import textwrap
 from ..localization import N_
 from .. import terminal, format
-from .outputable import Outputable
+from .outputable import Outputable, get_no_collapsible
 
 
 ACTIVITY_INFO_TEXT = N_("The following activity statistics show repository-level contributions over time")
@@ -294,12 +294,16 @@ class ActivityOutput(Outputable):
 
             chart_id = f"{metric.replace('_', '-')}-chart"
 
-            # Make each chart individually collapsible
-            print(f'<div class="chart-collapsible-header" data-target="{chart_id}">')
-            print(f"    {title} by Repository")
-            print(f'    <span class="chart-collapse-icon">▶</span>')
-            print(f"</div>")
-            print(f'<div id="{chart_id}" class="chart-collapsible-content" style="display: none;">')
+            # Make each chart individually collapsible unless disabled
+            if get_no_collapsible():
+                # Show chart title without collapsible wrapper
+                print(f"<h4>{title} by Repository</h4>")
+            else:
+                print(f'<div class="chart-collapsible-header" data-target="{chart_id}">')
+                print(f"    {title} by Repository")
+                print(f'    <span class="chart-collapse-icon">▶</span>')
+                print(f"</div>")
+                print(f'<div id="{chart_id}" class="chart-collapsible-content" style="display: none;">')
             print(f'<div class="activity-chart">')
             print('<div class="chart-container">')
 
@@ -396,7 +400,8 @@ class ActivityOutput(Outputable):
 
             print("</div>")  # chart-container
             print("</div>")  # activity-chart
-            print("</div>")  # chart-collapsible-content
+            if not get_no_collapsible():
+                print("</div>")  # chart-collapsible-content
 
         # Summary table
         print("<h5>Summary Statistics</h5>")

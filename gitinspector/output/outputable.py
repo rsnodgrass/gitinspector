@@ -20,6 +20,20 @@
 
 from .. import format
 
+# Global variable to control collapsible sections
+_no_collapsible = False
+
+
+def set_no_collapsible(value):
+    """Set the global no_collapsible flag."""
+    global _no_collapsible
+    _no_collapsible = value
+
+
+def get_no_collapsible():
+    """Get the global no_collapsible flag."""
+    return _no_collapsible
+
 
 class Outputable(object):
     def output_html(self):
@@ -37,7 +51,7 @@ class Outputable(object):
 
 def output(outputable):
     if format.get_selected() == "html" or format.get_selected() == "htmlembedded":
-        # For HTML output, wrap in collapsible sections for most outputs.
+        # For HTML output, wrap in collapsible sections (or show headers) for most outputs.
         # ActivityOutput already renders its own internal structure and chart-level collapsibles,
         # so do NOT add a top-level collapsible around it.
         if outputable.__class__.__name__ == "ActivityOutput":
@@ -54,7 +68,7 @@ def output(outputable):
 
 def _output_html_with_collapsible(outputable):
     """
-    Wrapper that captures HTML output and makes it collapsible.
+    Wrapper that captures HTML output and optionally makes it collapsible.
     """
     import sys
     from io import StringIO
@@ -73,20 +87,27 @@ def _output_html_with_collapsible(outputable):
     finally:
         sys.stdout = old_stdout
 
-    # Only create collapsible if there's actual content and it's not activity output
+    # Only create content wrapper if there's actual content and it's not activity output
     if html_content.strip():
         if outputable.__class__.__name__ == "ActivityOutput":
             # Directly print activity HTML without top-level collapsible wrapper
             print(html_content, end="")
             return
 
-        print(f'<div class="collapsible-header" data-target="{section_id}">')
-        print(f"    {section_title}")
-        print(f'    <span class="collapse-icon">▶</span>')
-        print(f"</div>")
-        print(f'<div id="{section_id}" class="collapsible-content">')
-        print(html_content, end="")  # HTML content already has proper formatting
-        print(f"</div>")
+        if get_no_collapsible():
+            # Show section header as regular HTML header without collapsible functionality
+            # Use a div structure with same width as content sections but without box styling
+            print(f"<div><div><h3>{section_title}</h3></div></div>")
+            print(html_content, end="")
+        else:
+            # Show collapsible section
+            print(f'<div class="collapsible-header" data-target="{section_id}">')
+            print(f"    {section_title}")
+            print(f'    <span class="collapse-icon">▶</span>')
+            print(f"</div>")
+            print(f'<div id="{section_id}" class="collapsible-content">')
+            print(html_content, end="")  # HTML content already has proper formatting
+            print(f"</div>")
 
 
 def _get_section_title(outputable):

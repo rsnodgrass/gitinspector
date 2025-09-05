@@ -69,6 +69,7 @@ class Runner(object):
         self.activity_dual = False
         self.activity_chart_type = "line"  # 'line' (default) or 'bar'
         self.github = False
+        self.no_collapsible = False
 
     def _show_repo_progress(self, current_repo, total_repos, repo_name, progress_percent, status=""):
         """Show dynamic progress bar for repository processing"""
@@ -372,6 +373,7 @@ def main():
                 "activity-dual:true",
                 "activity-chart=",
                 "github:true",
+                "no-collapsible:true",
             ],
         )
 
@@ -504,6 +506,8 @@ def main():
                 run.activity_chart_type = chart
             elif o == "--github":
                 run.github = optval.get_boolean_argument(a)
+            elif o == "--no-collapsible":
+                run.no_collapsible = optval.get_boolean_argument(a)
             elif o in ("-x", "--exclude"):
                 if clear_x_on_next_pass:
                     clear_x_on_next_pass = False
@@ -511,6 +515,11 @@ def main():
                 filtering.add(a)
 
         __check_python_version__()
+        
+        # Set the no_collapsible flag for output modules
+        from .output.outputable import set_no_collapsible
+        set_no_collapsible(run.no_collapsible)
+        
         run.process(repos)
 
     except (

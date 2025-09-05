@@ -5,7 +5,7 @@
       src="https://raw.githubusercontent.com/ejwa/gitinspector/master/gitinspector/html/gitinspector_piclet.png"/>
       &nbsp;About Gitinspector
 </h2>
-<img align="right" width="30%" src="https://raw.github.com/wiki/ejwa/gitinspector/images/html_example.jpg" /> 
+<img align="right" width="30%" src="https://raw.github.com/wiki/ejwa/gitinspector/images/html_example.jpg" />
 Gitinspector is a statistical analysis tool for git repositories. The default analysis shows general statistics per author, which can be complemented with a timeline analysis that shows the workload and activity of each author. Under normal operation, it filters the results to only show statistics about a number of given extensions and by default only includes source files in the statistical analysis.
 
 This tool was originally written to help fetch repository statistics from student projects in the course Object-oriented Programming Project (TDA367/DIT211) at Chalmers University of Technology and Gothenburg University.
@@ -475,6 +475,10 @@ The Debian packages offered with releases of gitinspector are unofficial and ver
 An [npm](https://npmjs.com) package is provided for convenience as well. To install it globally, execute `npm i -g gitinspector`.
 
 > **Note:** As of the latest version, gitinspector requires **no external Python dependencies** (PyYAML dependency has been removed), making direct usage the simplest installation method.
+
+#### Option 3: Github Workflow
+
+See [.github/workflows/gitinspector.yml](.github/workflows/gitinspector.yml) for an example of setting up an automated report via Github Workflow.
 
 ### License
 gitinspector is licensed under the *GNU GPL v3*. The gitinspector logo is partly based on the git logo; based on the work of Jason Long. The logo is licensed under the *Creative Commons Attribution 3.0 Unported License*.
