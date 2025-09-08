@@ -10,6 +10,7 @@ Fetches Pull Request data from GitHub repositories including:
 """
 
 import os
+import sys
 import base64
 import json
 import time
@@ -389,16 +390,18 @@ class GitHubIntegration:
         # Try to get cached results first
         if self.use_cache and self.cache:
             from .github_results_cache import GitHubResultsCache
+
             results_cache = GitHubResultsCache(self.cache.cache_dir)
-            
+
             # Get cache timestamps for validation
             cache_timestamps = {}
             for repo in repositories:
                 if self.cache.is_repository_cached(repo):
-                    metadata = self.cache.get_cache_metadata(repo)
-                    if metadata and "last_sync" in metadata:
-                        cache_timestamps[repo] = metadata["last_sync"]
-            
+                    all_metadata = self.cache.get_cache_metadata()
+                    repo_metadata = all_metadata.get("repositories", {}).get(repo, {})
+                    if repo_metadata and "last_sync" in repo_metadata:
+                        cache_timestamps[repo] = repo_metadata["last_sync"]
+
             # Try to get cached results
             cached_results = results_cache.get_cached_results(repositories, since, cache_timestamps)
             if cached_results:
@@ -489,16 +492,18 @@ class GitHubIntegration:
         # Cache the results for future use
         if self.use_cache and self.cache:
             from .github_results_cache import GitHubResultsCache
+
             results_cache = GitHubResultsCache(self.cache.cache_dir)
-            
+
             # Get cache timestamps for validation
             cache_timestamps = {}
             for repo in repositories:
                 if self.cache.is_repository_cached(repo):
-                    metadata = self.cache.get_cache_metadata(repo)
-                    if metadata and "last_sync" in metadata:
-                        cache_timestamps[repo] = metadata["last_sync"]
-            
+                    all_metadata = self.cache.get_cache_metadata()
+                    repo_metadata = all_metadata.get("repositories", {}).get(repo, {})
+                    if repo_metadata and "last_sync" in repo_metadata:
+                        cache_timestamps[repo] = repo_metadata["last_sync"]
+
             # Cache the results
             results_cache.cache_results(repositories, combined_analysis, since, cache_timestamps)
             print(f"Cached analysis results for {len(repositories)} repositories", file=sys.stderr)
