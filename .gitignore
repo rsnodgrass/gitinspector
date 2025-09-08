@@ -9,5 +9,11 @@ node_modules
 team_config.json
 venv/
 
+# GitHub cache directory (contains synced data)
+.github_cache/
+
+# Environment variables (contains sensitive credentials)
+.env
+
 # Test repositories (permanent test fixtures)
 tests/test_repositories/

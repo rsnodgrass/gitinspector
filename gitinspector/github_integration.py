@@ -21,6 +21,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 import jwt
+from .github_cache import GitHubCache, GitHubCacheError
 
 
 class GitHubIntegrationError(Exception):
@@ -32,36 +33,52 @@ class GitHubIntegrationError(Exception):
 class GitHubIntegration:
     """GitHub integration for fetching PR data and statistics."""
 
-    def __init__(self, app_id: str, private_key_path: str = None, private_key_content: str = None):
+    def __init__(
+        self,
+        app_id: str = None,
+        private_key_path: str = None,
+        private_key_content: str = None,
+        use_cache: bool = True,
+        cache_dir: str = ".github_cache",
+    ):
         """
         Initialize GitHub integration.
 
         Args:
-            app_id: GitHub App ID
-            private_key_path: Path to private key file
-            private_key_content: Private key content as string
+            app_id: GitHub App ID (required only if not using cache)
+            private_key_path: Path to private key file (required only if not using cache)
+            private_key_content: Private key content as string (required only if not using cache)
+            use_cache: Whether to use cached data instead of API calls
+            cache_dir: Directory for cache files
         """
-        self.app_id = app_id
-        self.api_base_url = os.getenv("GITHUB_API_BASE_URL", "https://api.github.com")
-        self.api_version = os.getenv("GITHUB_API_VERSION", "2022-11-28")
+        self.use_cache = use_cache
+        self.cache = GitHubCache(cache_dir) if use_cache else None
 
-        # Load private key
-        if private_key_path:
-            with open(private_key_path, "r") as f:
-                self.private_key = f.read()
-        elif private_key_content:
-            self.private_key = private_key_content
-        else:
-            raise GitHubIntegrationError("Either private_key_path or private_key_content must be provided")
+        if not use_cache:
+            if not app_id:
+                raise GitHubIntegrationError("app_id is required when not using cache")
 
-        # Initialize session
-        self.session = requests.Session()
-        self.session.headers.update(
-            {"Accept": f"application/vnd.github.v3+json", "User-Agent": "GitInspector-GitHub-Integration"}
-        )
+            self.app_id = app_id
+            self.api_base_url = os.getenv("GITHUB_API_BASE_URL", "https://api.github.com")
+            self.api_version = os.getenv("GITHUB_API_VERSION", "2022-11-28")
 
-        # Cache for installation tokens
-        self._installation_tokens = {}
+            # Load private key
+            if private_key_path:
+                with open(private_key_path, "r") as f:
+                    self.private_key = f.read()
+            elif private_key_content:
+                self.private_key = private_key_content
+            else:
+                raise GitHubIntegrationError("Either private_key_path or private_key_content must be provided")
+
+            # Initialize session
+            self.session = requests.Session()
+            self.session.headers.update(
+                {"Accept": "application/vnd.github.v3+json", "User-Agent": "GitInspector-GitHub-Integration"}
+            )
+
+            # Cache for installation tokens
+            self._installation_tokens = {}
 
     def _create_jwt(self) -> str:
         """Create a JWT token for GitHub App authentication."""
@@ -74,8 +91,7 @@ class GitHubIntegration:
             payload = {"iat": now, "exp": now + 600, "iss": self.app_id}  # 10 minutes
 
             # Sign the JWT
-            token = jwt.encode(payload, private_key, algorithm="RS256")
-            return token
+            return jwt.encode(payload, private_key, algorithm="RS256")
 
         except Exception as e:
             raise GitHubIntegrationError(f"Failed to create JWT: {str(e)}")
@@ -131,19 +147,19 @@ class GitHubIntegration:
 
         return response.json()
 
-    def get_pull_requests(self, owner: str, repo: str, state: str = "all", since: str = None) -> List[Dict]:
-        """
-        Get pull requests for a repository.
+    def _filter_cached_prs(self, prs: List[Dict], state: str, since: str = None) -> List[Dict]:
+        """Filter cached PRs by state and since."""
+        filtered_prs = []
+        for pr in prs:
+            if state != "all" and pr.get("state") != state:
+                continue
+            if since and pr.get("created_at", "") < since:
+                continue
+            filtered_prs.append(pr)
+        return filtered_prs
 
-        Args:
-            owner: Repository owner
-            repo: Repository name
-            state: PR state (open, closed, all)
-            since: ISO 8601 timestamp to filter PRs created after this time
-
-        Returns:
-            List of pull request data
-        """
+    def _fetch_prs_from_api(self, owner: str, repo: str, state: str, since: str = None) -> List[Dict]:
+        """Fetch PRs from GitHub API."""
         params = {"state": state, "per_page": 100}
         if since:
             params["since"] = since
@@ -169,41 +185,94 @@ class GitHubIntegration:
 
         return prs
 
+    def get_pull_requests(self, owner: str, repo: str, state: str = "all", since: str = None) -> List[Dict]:
+        """
+        Get pull requests for a repository.
+
+        Args:
+            owner: Repository owner
+            repo: Repository name
+            state: PR state (open, closed, all)
+            since: ISO 8601 timestamp to filter PRs created after this time
+
+        Returns:
+            List of pull request data
+        """
+        repository = f"{owner}/{repo}"
+
+        # If using cache, try to get from cache first
+        if self.use_cache and self.cache.is_repository_cached(repository):
+            if cached_prs := self.cache.get_cached_pull_requests(repository):
+                return self._filter_cached_prs(cached_prs, state, since)
+
+        # If not using cache, fetch from API
+        if not self.use_cache:
+            return self._fetch_prs_from_api(owner, repo, state, since)
+
+        raise GitHubIntegrationError(f"No cached data available for {repository}. Run the sync script first.")
+
     def get_pr_reviews(self, owner: str, repo: str, pr_number: int) -> List[Dict]:
         """Get reviews for a specific pull request."""
-        try:
-            return self._make_authenticated_request(owner, repo, f"pulls/{pr_number}/reviews")
-        except GitHubIntegrationError as e:
-            if "404" in str(e):
-                # No reviews exist for this PR - this is normal
-                return []
-            else:
+        repository = f"{owner}/{repo}"
+
+        # If using cache, try to get from cache first
+        if self.use_cache and self.cache.is_repository_cached(repository):
+            return self.cache.get_cached_reviews(repository, pr_number)
+
+        # If not using cache, fetch from API
+        if not self.use_cache:
+            try:
+                return self._make_authenticated_request(owner, repo, f"pulls/{pr_number}/reviews")
+            except GitHubIntegrationError as e:
+                if "404" in str(e):
+                    # No reviews exist for this PR - this is normal
+                    return []
                 # Re-raise other errors
                 raise
+
+        raise GitHubIntegrationError(f"No cached data available for {repository}. Run the sync script first.")
 
     def get_pr_comments(self, owner: str, repo: str, pr_number: int) -> List[Dict]:
         """Get comments for a specific pull request."""
-        try:
-            return self._make_authenticated_request(owner, repo, f"pulls/{pr_number}/comments")
-        except GitHubIntegrationError as e:
-            if "404" in str(e):
-                # No comments exist for this PR - this is normal
-                return []
-            else:
+        repository = f"{owner}/{repo}"
+
+        # If using cache, try to get from cache first
+        if self.use_cache and self.cache.is_repository_cached(repository):
+            return self.cache.get_cached_comments(repository, pr_number)
+
+        # If not using cache, fetch from API
+        if not self.use_cache:
+            try:
+                return self._make_authenticated_request(owner, repo, f"pulls/{pr_number}/comments")
+            except GitHubIntegrationError as e:
+                if "404" in str(e):
+                    # No comments exist for this PR - this is normal
+                    return []
                 # Re-raise other errors
                 raise
 
+        raise GitHubIntegrationError(f"No cached data available for {repository}. Run the sync script first.")
+
     def get_pr_review_comments(self, owner: str, repo: str, pr_number: int) -> List[Dict]:
         """Get review comments for a specific pull request."""
-        try:
-            return self._make_authenticated_request(owner, repo, f"pulls/{pr_number}/reviews/comments")
-        except GitHubIntegrationError as e:
-            if "404" in str(e):
-                # No review comments exist for this PR - this is normal
-                return []
-            else:
+        repository = f"{owner}/{repo}"
+
+        # If using cache, try to get from cache first
+        if self.use_cache and self.cache.is_repository_cached(repository):
+            return self.cache.get_cached_review_comments(repository, pr_number)
+
+        # If not using cache, fetch from API
+        if not self.use_cache:
+            try:
+                return self._make_authenticated_request(owner, repo, f"pulls/{pr_number}/reviews/comments")
+            except GitHubIntegrationError as e:
+                if "404" in str(e):
+                    # No review comments exist for this PR - this is normal
+                    return []
                 # Re-raise other errors
                 raise
+
+        raise GitHubIntegrationError(f"No cached data available for {repository}. Run the sync script first.")
 
     def analyze_repository_prs(self, owner: str, repo: str, since: str = None) -> Dict:
         """
@@ -416,15 +485,13 @@ def load_github_config() -> Tuple[str, str]:
         raise GitHubIntegrationError("GITHUB_APP_ID environment variable not set")
 
     # Try private key path first
-    private_key_path = os.getenv("GITHUB_PRIVATE_KEY_PATH")
-    if private_key_path:
+    if private_key_path := os.getenv("GITHUB_PRIVATE_KEY_PATH"):
         if not os.path.exists(private_key_path):
             raise GitHubIntegrationError(f"Private key file not found: {private_key_path}")
         return app_id, private_key_path
 
     # Try private key content
-    private_key_content = os.getenv("GITHUB_PRIVATE_KEY")
-    if private_key_content:
+    if private_key_content := os.getenv("GITHUB_PRIVATE_KEY"):
         return app_id, private_key_content
 
     raise GitHubIntegrationError("Either GITHUB_PRIVATE_KEY_PATH or GITHUB_PRIVATE_KEY must be set")

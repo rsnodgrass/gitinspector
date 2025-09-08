@@ -222,13 +222,18 @@ class Runner(object):
                         github_repos = teamconfig.get_github_repositories()
                         print(f"Analyzing {len(github_repos)} GitHub repositories...", file=sys.stderr)
 
-                        # Load GitHub configuration
-                        app_id, private_key = load_github_config()
-                        github_integration = GitHubIntegration(
-                            app_id,
-                            private_key_path=private_key if os.path.exists(private_key) else None,
-                            private_key_content=private_key if not os.path.exists(private_key) else None,
-                        )
+                        # Load GitHub configuration and initialize with cache
+                        try:
+                            app_id, private_key = load_github_config()
+                            github_integration = GitHubIntegration(
+                                app_id,
+                                private_key_path=private_key if os.path.exists(private_key) else None,
+                                private_key_content=private_key if not os.path.exists(private_key) else None,
+                                use_cache=True,  # Use cache by default
+                            )
+                        except GitHubIntegrationError:
+                            # If GitHub config is not available, try cache-only mode
+                            github_integration = GitHubIntegration(use_cache=True)
 
                         # Analyze GitHub repositories
                         github_data = github_integration.analyze_multiple_repositories(github_repos)
@@ -281,17 +286,29 @@ class Runner(object):
                         from . import teamconfig
                         from .github_integration import GitHubIntegration, load_github_config
 
+                        # Load team config to get GitHub repositories if not already loaded
+                        if not teamconfig.has_github_repositories():
+                            try:
+                                teamconfig.load_team_config("team_config.json", enable_team_filtering=False)
+                            except teamconfig.TeamConfigError:
+                                pass  # Continue even if team config loading fails
+
                         if teamconfig.has_github_repositories():
                             github_repos = teamconfig.get_github_repositories()
                             print(f"Analyzing {len(github_repos)} GitHub repositories...", file=sys.stderr)
 
-                            # Load GitHub configuration
-                            app_id, private_key = load_github_config()
-                            github_integration = GitHubIntegration(
-                                app_id,
-                                private_key_path=private_key if os.path.exists(private_key) else None,
-                                private_key_content=private_key if not os.path.exists(private_key) else None,
-                            )
+                            # Load GitHub configuration and initialize with cache
+                            try:
+                                app_id, private_key = load_github_config()
+                                github_integration = GitHubIntegration(
+                                    app_id,
+                                    private_key_path=private_key if os.path.exists(private_key) else None,
+                                    private_key_content=private_key if not os.path.exists(private_key) else None,
+                                    use_cache=True,  # Use cache by default
+                                )
+                            except GitHubIntegrationError:
+                                # If GitHub config is not available, try cache-only mode
+                                github_integration = GitHubIntegration(use_cache=True)
 
                             # Analyze GitHub repositories
                             github_data = github_integration.analyze_multiple_repositories(github_repos)

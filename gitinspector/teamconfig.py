@@ -163,4 +163,4 @@ def get_github_repositories():
 
 def has_github_repositories():
     """Check if GitHub repositories are loaded from config file."""
-    return __github_repositories_loaded__
+    return __github_repositories_loaded__ and len(__github_repositories__) > 0
