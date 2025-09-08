@@ -160,6 +160,49 @@ github_integration = GitHubIntegration(
 )
 ```
 
+## Results Caching
+
+In addition to caching raw GitHub data, GitInspector also caches the processed analysis results. This provides significant performance improvements for subsequent runs:
+
+### How It Works
+
+1. **First Run**: When you run `python run_gitinspector.py --github --format=html`, GitInspector:
+   - Fetches GitHub data from cache (or API if not cached)
+   - Processes the data to generate statistics and analysis
+   - Caches the processed results for future use
+   - Outputs the results
+
+2. **Subsequent Runs**: When you run the same command again:
+   - GitInspector checks if the processed results are still valid
+   - If valid, uses the cached results immediately (much faster!)
+   - If invalid (due to new data), reprocesses and updates the cache
+
+### Cache Validation
+
+The results cache is automatically invalidated when:
+- New GitHub data is synced to the cache
+- Different repositories are analyzed
+- Different time ranges are specified (`--since` parameter)
+
+### Performance Impact
+
+- **First Run**: Normal processing time (e.g., 30-60 seconds)
+- **Subsequent Runs**: Near-instantaneous (1-2 seconds)
+- **Cache Size**: Typically 1-10 KB per analysis result
+
+### Managing Results Cache
+
+```bash
+# Clear only the processed results cache
+python sync_github_cache.py --clear-results
+
+# Clear all cache data (including results)
+python sync_github_cache.py --clear
+
+# View cache status (includes results cache info)
+python sync_github_cache.py --status
+```
+
 ## Testing
 
 Run the test suite to verify everything works:
@@ -169,4 +212,7 @@ python -m unittest tests.test_github_cache -v
 
 # Test integration with cache
 python -m unittest tests.test_github_integration_cache -v
+
+# Test results cache
+python -m unittest tests.test_github_results_cache -v
 ```

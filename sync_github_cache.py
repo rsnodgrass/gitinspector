@@ -213,6 +213,18 @@ def show_cache_status(cache: GitHubCache) -> None:
     for name, size in cache_sizes.items():
         if size > 0:
             print(f"    {name}: {size} bytes")
+    
+    # Show results cache info
+    try:
+        from gitinspector.github_results_cache import GitHubResultsCache
+        results_cache = GitHubResultsCache(cache.cache_dir)
+        results_info = results_cache.get_cache_info()
+        
+        print(f"\n  Processed Results Cache:")
+        print(f"    Total Entries: {results_info['total_entries']}")
+        print(f"    Total Size: {results_info['total_size_bytes'] / 1024:.2f} KB")
+    except ImportError:
+        print(f"\n  Processed Results Cache: Not available")
 
 
 def main():
@@ -259,6 +271,7 @@ Examples:
     parser.add_argument("--cache-dir", default=".github_cache", help="Cache directory (default: .github_cache)")
     parser.add_argument("--status", action="store_true", help="Show current cache status")
     parser.add_argument("--clear", action="store_true", help="Clear all cached data")
+    parser.add_argument("--clear-results", action="store_true", help="Clear processed results cache")
     parser.add_argument("--full-sync", action="store_true", help="Force full sync instead of incremental")
     parser.add_argument("--test-mode", action="store_true", help="Test mode - sync only recent data (last 7 days)")
     parser.add_argument(
@@ -276,6 +289,14 @@ Examples:
     if args.clear:
         cache.clear_all_cache()
         print("Cache cleared successfully")
+        return
+
+    if args.clear_results:
+        print("Clearing processed results cache...")
+        from gitinspector.github_results_cache import GitHubResultsCache
+        results_cache = GitHubResultsCache(args.cache_dir)
+        results_cache.clear_cache()
+        print("Results cache cleared successfully!")
         return
 
     if args.status:

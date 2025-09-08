@@ -386,6 +386,25 @@ class GitHubIntegration:
         Returns:
             Dictionary containing combined analysis data
         """
+        # Try to get cached results first
+        if self.use_cache and self.cache:
+            from .github_results_cache import GitHubResultsCache
+            results_cache = GitHubResultsCache(self.cache.cache_dir)
+            
+            # Get cache timestamps for validation
+            cache_timestamps = {}
+            for repo in repositories:
+                if self.cache.is_repository_cached(repo):
+                    metadata = self.cache.get_cache_metadata(repo)
+                    if metadata and "last_sync" in metadata:
+                        cache_timestamps[repo] = metadata["last_sync"]
+            
+            # Try to get cached results
+            cached_results = results_cache.get_cached_results(repositories, since, cache_timestamps)
+            if cached_results:
+                print(f"Using cached analysis results for {len(repositories)} repositories", file=sys.stderr)
+                return cached_results
+
         combined_analysis = {
             "total_repositories": len(repositories),
             "repositories": {},
@@ -466,6 +485,23 @@ class GitHubIntegration:
         combined_analysis["overall_stats"]["total_comments"] = sum(
             stats["comments_given"] for stats in combined_analysis["comment_stats"].values()
         )
+
+        # Cache the results for future use
+        if self.use_cache and self.cache:
+            from .github_results_cache import GitHubResultsCache
+            results_cache = GitHubResultsCache(self.cache.cache_dir)
+            
+            # Get cache timestamps for validation
+            cache_timestamps = {}
+            for repo in repositories:
+                if self.cache.is_repository_cached(repo):
+                    metadata = self.cache.get_cache_metadata(repo)
+                    if metadata and "last_sync" in metadata:
+                        cache_timestamps[repo] = metadata["last_sync"]
+            
+            # Cache the results
+            results_cache.cache_results(repositories, combined_analysis, since, cache_timestamps)
+            print(f"Cached analysis results for {len(repositories)} repositories", file=sys.stderr)
 
         return combined_analysis
 
