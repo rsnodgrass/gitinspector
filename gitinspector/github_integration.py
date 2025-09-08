@@ -149,13 +149,25 @@ class GitHubIntegration:
         return response.json()
 
     def _filter_cached_prs(self, prs: List[Dict], state: str, since: str = None) -> List[Dict]:
-        """Filter cached PRs by state and since."""
+        """Filter cached PRs by state and since date."""
         filtered_prs = []
         for pr in prs:
+            # Filter by state
             if state != "all" and pr.get("state") != state:
                 continue
-            if since and pr.get("created_at", "") < since:
-                continue
+            
+            # Filter by since date - convert to datetime for proper comparison
+            if since:
+                try:
+                    from datetime import datetime
+                    pr_created = datetime.fromisoformat(pr.get("created_at", "").replace('Z', '+00:00'))
+                    since_date = datetime.fromisoformat(since.replace('Z', '+00:00'))
+                    if pr_created < since_date:
+                        continue
+                except (ValueError, TypeError):
+                    # If date parsing fails, skip this PR
+                    continue
+
             filtered_prs.append(pr)
         return filtered_prs
 
@@ -357,8 +369,26 @@ class GitHubIntegration:
                 if commenter not in analysis["comment_stats"]:
                     analysis["comment_stats"][commenter] = {"comments_given": 0, "comments_received": 0}
 
+                # Increment comments given for the commenter
                 analysis["comment_stats"][commenter]["comments_given"] += 1
-                analysis["user_stats"][author]["total_comments_received"] += 1
+
+                # Ensure commenter is in user_stats for proper aggregation
+                if commenter not in analysis["user_stats"]:
+                    analysis["user_stats"][commenter] = {
+                        "prs_created": 0,
+                        "prs_merged": 0,
+                        "total_comments_received": 0,
+                        "total_reviews_received": 0,
+                    }
+
+            # Calculate comments received for the PR author
+            # Comments received = comments made on PRs created by that user
+            analysis["user_stats"][author]["total_comments_received"] += len(all_comments)
+
+            # Ensure PR author is in comment_stats
+            if author not in analysis["comment_stats"]:
+                analysis["comment_stats"][author] = {"comments_given": 0, "comments_received": 0}
+            analysis["comment_stats"][author]["comments_received"] += len(all_comments)
 
             # Count reviews received
             analysis["user_stats"][author]["total_reviews_received"] += len(reviews)
