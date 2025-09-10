@@ -151,17 +151,27 @@ class GitHubIntegration:
     def _filter_cached_prs(self, prs: List[Dict], state: str, since: str = None) -> List[Dict]:
         """Filter cached PRs by state and since date."""
         filtered_prs = []
+
         for pr in prs:
             # Filter by state
             if state != "all" and pr.get("state") != state:
                 continue
-            
+
             # Filter by since date - convert to datetime for proper comparison
             if since:
                 try:
-                    from datetime import datetime
-                    pr_created = datetime.fromisoformat(pr.get("created_at", "").replace('Z', '+00:00'))
-                    since_date = datetime.fromisoformat(since.replace('Z', '+00:00'))
+                    from datetime import datetime, timezone
+
+                    pr_created_str = pr.get("created_at", "")
+                    pr_created = datetime.fromisoformat(pr_created_str.replace("Z", "+00:00"))
+
+                    # Parse since date and make it timezone-aware (assume UTC if no timezone)
+                    if "T" in since or "Z" in since:
+                        since_date = datetime.fromisoformat(since.replace("Z", "+00:00"))
+                    else:
+                        # If it's just a date like "2025-08-01", assume UTC midnight
+                        since_date = datetime.fromisoformat(since + "T00:00:00+00:00")
+
                     if pr_created < since_date:
                         continue
                 except (ValueError, TypeError):
@@ -169,6 +179,7 @@ class GitHubIntegration:
                     continue
 
             filtered_prs.append(pr)
+
         return filtered_prs
 
     def _fetch_prs_from_api(self, owner: str, repo: str, state: str, since: str = None) -> List[Dict]:
