@@ -332,9 +332,22 @@ class GitHubIntegration:
         # Get all PRs
         prs = self.get_pull_requests(owner, repo, since=since, until=until)
 
-        analysis = {
-            "repository": f"{owner}/{repo}",
-            "total_prs": len(prs),
+        # Initialize analysis structure
+        analysis = self._initialize_analysis_structure(f"{owner}/{repo}")
+
+        # Process each PR
+        self._process_prs(owner, repo, prs, analysis)
+
+        # Calculate final statistics
+        self._calculate_final_statistics(analysis)
+
+        return analysis
+
+    def _initialize_analysis_structure(self, repository: str) -> Dict:
+        """Initialize the analysis data structure."""
+        return {
+            "repository": repository,
+            "total_prs": 0,
             "open_prs": 0,
             "closed_prs": 0,
             "merged_prs": 0,
@@ -344,87 +357,119 @@ class GitHubIntegration:
             "comment_stats": {},
         }
 
+    def _process_prs(self, owner: str, repo: str, prs: List[Dict], analysis: Dict) -> None:
+        """Process all PRs and update analysis data."""
         total_prs = len(prs)
+        analysis["total_prs"] = total_prs
+
         for i, pr in enumerate(prs, 1):
-            # Show progress every 10 PRs or for the last one
-            if i % 10 == 0 or i == total_prs:
-                print(f"  Processing PR {i}/{total_prs} ({(i/total_prs)*100:.1f}%)", file=os.sys.stderr)
+            self._show_progress(i, total_prs)
+            self._process_single_pr(owner, repo, pr, analysis)
+            time.sleep(0.1)  # Rate limiting
 
-            # Basic PR info
-            if pr["state"] == "open":
-                analysis["open_prs"] += 1
-            elif pr["merged_at"]:
-                analysis["merged_prs"] += 1
-                # Calculate duration for merged PRs
-                created_at = datetime.fromisoformat(pr["created_at"].replace("Z", "+00:00"))
-                merged_at = datetime.fromisoformat(pr["merged_at"].replace("Z", "+00:00"))
-                duration_hours = (merged_at - created_at).total_seconds() / 3600
-                analysis["pr_durations"].append(duration_hours)
-            else:
-                analysis["closed_prs"] += 1
+    def _show_progress(self, current: int, total: int) -> None:
+        """Show progress for PR processing."""
+        if current % 10 == 0 or current == total:
+            print(f"  Processing PR {current}/{total} ({(current/total)*100:.1f}%)", file=os.sys.stderr)
 
-            # User statistics
-            author = pr["user"]["login"]
-            if author not in analysis["user_stats"]:
-                analysis["user_stats"][author] = {
-                    "prs_created": 0,
-                    "prs_merged": 0,
-                    "total_comments_received": 0,
-                    "total_reviews_received": 0,
-                }
+    def _process_single_pr(self, owner: str, repo: str, pr: Dict, analysis: Dict) -> None:
+        """Process a single PR and update analysis data."""
+        # Process basic PR information
+        self._process_pr_basic_info(pr, analysis)
+        
+        # Process user statistics
+        self._process_pr_user_stats(pr, analysis)
+        
+        # Get and process reviews and comments
+        reviews = self.get_pr_reviews(owner, repo, pr["number"])
+        comments = self.get_pr_comments(owner, repo, pr["number"])
+        review_comments = self.get_pr_review_comments(owner, repo, pr["number"])
+        
+        # Process review statistics
+        self._process_review_stats(reviews, analysis)
+        
+        # Process comment statistics
+        self._process_comment_stats(pr, comments, review_comments, analysis)
+        
+        # Update reviews received for PR author
+        author = pr["user"]["login"]
+        analysis["user_stats"][author]["total_reviews_received"] += len(reviews)
 
-            analysis["user_stats"][author]["prs_created"] += 1
-            if pr["merged_at"]:
-                analysis["user_stats"][author]["prs_merged"] += 1
+    def _process_pr_basic_info(self, pr: Dict, analysis: Dict) -> None:
+        """Process basic PR information (state, duration)."""
+        if pr["state"] == "open":
+            analysis["open_prs"] += 1
+        elif pr["merged_at"]:
+            analysis["merged_prs"] += 1
+            duration_hours = self._calculate_pr_duration(pr)
+            analysis["pr_durations"].append(duration_hours)
+        else:
+            analysis["closed_prs"] += 1
 
-            # Get reviews and comments (now handled gracefully by the updated methods)
-            reviews = self.get_pr_reviews(owner, repo, pr["number"])
-            comments = self.get_pr_comments(owner, repo, pr["number"])
-            review_comments = self.get_pr_review_comments(owner, repo, pr["number"])
+    def _calculate_pr_duration(self, pr: Dict) -> float:
+        """Calculate PR duration in hours."""
+        created_at = datetime.fromisoformat(pr["created_at"].replace("Z", "+00:00"))
+        merged_at = datetime.fromisoformat(pr["merged_at"].replace("Z", "+00:00"))
+        return (merged_at - created_at).total_seconds() / 3600
 
-            # Review statistics
-            for review in reviews:
-                reviewer = review["user"]["login"]
-                if reviewer not in analysis["review_stats"]:
-                    analysis["review_stats"][reviewer] = {"reviews_given": 0, "comments_given": 0}
+    def _process_pr_user_stats(self, pr: Dict, analysis: Dict) -> None:
+        """Process user statistics for a PR."""
+        author = pr["user"]["login"]
+        self._ensure_user_in_stats(author, analysis["user_stats"])
+        
+        analysis["user_stats"][author]["prs_created"] += 1
+        if pr["merged_at"]:
+            analysis["user_stats"][author]["prs_merged"] += 1
 
-                analysis["review_stats"][reviewer]["reviews_given"] += 1
+    def _ensure_user_in_stats(self, user: str, user_stats: Dict) -> None:
+        """Ensure user exists in user_stats with default values."""
+        if user not in user_stats:
+            user_stats[user] = {
+                "prs_created": 0,
+                "prs_merged": 0,
+                "total_comments_received": 0,
+                "total_reviews_received": 0,
+            }
 
-            # Comment statistics
-            all_comments = comments + review_comments
-            for comment in all_comments:
-                commenter = comment["user"]["login"]
-                if commenter not in analysis["comment_stats"]:
-                    analysis["comment_stats"][commenter] = {"comments_given": 0, "comments_received": 0}
+    def _process_review_stats(self, reviews: List[Dict], analysis: Dict) -> None:
+        """Process review statistics."""
+        for review in reviews:
+            reviewer = review["user"]["login"]
+            if reviewer not in analysis["review_stats"]:
+                analysis["review_stats"][reviewer] = {"reviews_given": 0, "comments_given": 0}
+            analysis["review_stats"][reviewer]["reviews_given"] += 1
 
-                # Increment comments given for the commenter
-                analysis["comment_stats"][commenter]["comments_given"] += 1
+    def _process_comment_stats(self, pr: Dict, comments: List[Dict], review_comments: List[Dict], analysis: Dict) -> None:
+        """Process comment statistics."""
+        author = pr["user"]["login"]
+        all_comments = comments + review_comments
+        
+        # Process individual comments
+        for comment in all_comments:
+            commenter = comment["user"]["login"]
+            self._ensure_commenter_in_stats(commenter, analysis)
+            analysis["comment_stats"][commenter]["comments_given"] += 1
 
-                # Ensure commenter is in user_stats for proper aggregation
-                if commenter not in analysis["user_stats"]:
-                    analysis["user_stats"][commenter] = {
-                        "prs_created": 0,
-                        "prs_merged": 0,
-                        "total_comments_received": 0,
-                        "total_reviews_received": 0,
-                    }
+        # Update comments received for PR author
+        self._update_author_comment_stats(author, all_comments, analysis)
 
-            # Calculate comments received for the PR author
-            # Comments received = comments made on PRs created by that user
-            analysis["user_stats"][author]["total_comments_received"] += len(all_comments)
+    def _ensure_commenter_in_stats(self, commenter: str, analysis: Dict) -> None:
+        """Ensure commenter exists in both comment_stats and user_stats."""
+        if commenter not in analysis["comment_stats"]:
+            analysis["comment_stats"][commenter] = {"comments_given": 0, "comments_received": 0}
+        
+        self._ensure_user_in_stats(commenter, analysis["user_stats"])
 
-            # Ensure PR author is in comment_stats
-            if author not in analysis["comment_stats"]:
-                analysis["comment_stats"][author] = {"comments_given": 0, "comments_received": 0}
-            analysis["comment_stats"][author]["comments_received"] += len(all_comments)
+    def _update_author_comment_stats(self, author: str, all_comments: List[Dict], analysis: Dict) -> None:
+        """Update comment statistics for PR author."""
+        analysis["user_stats"][author]["total_comments_received"] += len(all_comments)
+        
+        if author not in analysis["comment_stats"]:
+            analysis["comment_stats"][author] = {"comments_given": 0, "comments_received": 0}
+        analysis["comment_stats"][author]["comments_received"] += len(all_comments)
 
-            # Count reviews received
-            analysis["user_stats"][author]["total_reviews_received"] += len(reviews)
-
-            # Rate limiting - be respectful to GitHub API
-            time.sleep(0.1)
-
-        # Calculate averages
+    def _calculate_final_statistics(self, analysis: Dict) -> None:
+        """Calculate final statistics (averages, medians)."""
         if analysis["pr_durations"]:
             analysis["avg_pr_duration_hours"] = sum(analysis["pr_durations"]) / len(analysis["pr_durations"])
             analysis["median_pr_duration_hours"] = sorted(analysis["pr_durations"])[len(analysis["pr_durations"]) // 2]
@@ -432,42 +477,69 @@ class GitHubIntegration:
             analysis["avg_pr_duration_hours"] = 0
             analysis["median_pr_duration_hours"] = 0
 
-        return analysis
-
     def analyze_multiple_repositories(self, repositories: List[str], since: str = None, until: str = None) -> Dict:
         """
         Analyze PR data for multiple repositories.
 
         Args:
             repositories: List of repositories in format "owner/repo"
-            since: ISO 8601 timestamp to filter PRs
+            since: ISO 8601 timestamp to filter PRs created after this time
+            until: ISO 8601 timestamp to filter PRs created before this time
 
         Returns:
             Dictionary containing combined analysis data
         """
         # Try to get cached results first
-        if self.use_cache and self.cache:
-            from .github_results_cache import GitHubResultsCache
+        if cached_results := self._try_get_cached_results(repositories, since):
+            return cached_results
 
-            results_cache = GitHubResultsCache(self.cache.cache_dir)
+        # Initialize combined analysis structure
+        combined_analysis = self._initialize_combined_analysis_structure(len(repositories))
 
-            # Get cache timestamps for validation
-            cache_timestamps = {}
-            for repo in repositories:
-                if self.cache.is_repository_cached(repo):
-                    all_metadata = self.cache.get_cache_metadata()
-                    repo_metadata = all_metadata.get("repositories", {}).get(repo, {})
-                    if repo_metadata and "last_sync" in repo_metadata:
-                        cache_timestamps[repo] = repo_metadata["last_sync"]
+        # Process each repository
+        self._process_repositories(repositories, since, until, combined_analysis)
 
-            # Try to get cached results
-            cached_results = results_cache.get_cached_results(repositories, since, cache_timestamps)
-            if cached_results:
-                print(f"Using cached analysis results for {len(repositories)} repositories", file=sys.stderr)
-                return cached_results
+        # Calculate final combined statistics
+        self._calculate_combined_statistics(combined_analysis)
 
-        combined_analysis = {
-            "total_repositories": len(repositories),
+        # Cache the results for future use
+        self._cache_analysis_results(repositories, since, combined_analysis)
+
+        return combined_analysis
+
+    def _try_get_cached_results(self, repositories: List[str], since: str) -> Dict:
+        """Try to get cached results for the repositories."""
+        if not (self.use_cache and self.cache):
+            return None
+
+        from .github_results_cache import GitHubResultsCache
+        results_cache = GitHubResultsCache(self.cache.cache_dir)
+
+        # Get cache timestamps for validation
+        cache_timestamps = self._get_cache_timestamps(repositories)
+
+        # Try to get cached results
+        if cached_results := results_cache.get_cached_results(repositories, since, cache_timestamps):
+            print(f"Using cached analysis results for {len(repositories)} repositories", file=sys.stderr)
+            return cached_results
+
+        return None
+
+    def _get_cache_timestamps(self, repositories: List[str]) -> Dict[str, str]:
+        """Get cache timestamps for the given repositories."""
+        cache_timestamps = {}
+        for repo in repositories:
+            if self.cache.is_repository_cached(repo):
+                all_metadata = self.cache.get_cache_metadata()
+                repo_metadata = all_metadata.get("repositories", {}).get(repo, {})
+                if repo_metadata and "last_sync" in repo_metadata:
+                    cache_timestamps[repo] = repo_metadata["last_sync"]
+        return cache_timestamps
+
+    def _initialize_combined_analysis_structure(self, total_repositories: int) -> Dict:
+        """Initialize the combined analysis data structure."""
+        return {
+            "total_repositories": total_repositories,
             "repositories": {},
             "overall_stats": {
                 "total_prs": 0,
@@ -482,55 +554,76 @@ class GitHubIntegration:
             "comment_stats": {},
         }
 
+    def _process_repositories(self, repositories: List[str], since: str, until: str, combined_analysis: Dict) -> None:
+        """Process all repositories and aggregate their analysis data."""
         for repo in repositories:
             try:
                 owner, repo_name = repo.split("/", 1)
                 analysis = self.analyze_repository_prs(owner, repo_name, since, until)
-
+                
                 combined_analysis["repositories"][repo] = analysis
-
-                # Aggregate overall stats
-                combined_analysis["overall_stats"]["total_prs"] += analysis["total_prs"]
-                combined_analysis["overall_stats"]["total_open_prs"] += analysis["open_prs"]
-                combined_analysis["overall_stats"]["total_merged_prs"] += analysis["merged_prs"]
-
-                # Aggregate user stats
-                for user, stats in analysis["user_stats"].items():
-                    if user not in combined_analysis["user_stats"]:
-                        combined_analysis["user_stats"][user] = {
-                            "prs_created": 0,
-                            "prs_merged": 0,
-                            "total_comments_received": 0,
-                            "total_reviews_received": 0,
-                        }
-
-                    combined_analysis["user_stats"][user]["prs_created"] += stats["prs_created"]
-                    combined_analysis["user_stats"][user]["prs_merged"] += stats["prs_merged"]
-                    combined_analysis["user_stats"][user]["total_comments_received"] += stats[
-                        "total_comments_received"
-                    ]
-                    combined_analysis["user_stats"][user]["total_reviews_received"] += stats["total_reviews_received"]
-
-                # Aggregate review stats
-                for user, stats in analysis["review_stats"].items():
-                    if user not in combined_analysis["review_stats"]:
-                        combined_analysis["review_stats"][user] = {"reviews_given": 0, "comments_given": 0}
-
-                    combined_analysis["review_stats"][user]["reviews_given"] += stats["reviews_given"]
-                    combined_analysis["review_stats"][user]["comments_given"] += stats["comments_given"]
-
-                # Aggregate comment stats
-                for user, stats in analysis["comment_stats"].items():
-                    if user not in combined_analysis["comment_stats"]:
-                        combined_analysis["comment_stats"][user] = {"comments_given": 0, "comments_received": 0}
-
-                    combined_analysis["comment_stats"][user]["comments_given"] += stats["comments_given"]
-                    combined_analysis["comment_stats"][user]["comments_received"] += stats["comments_received"]
-
+                self._aggregate_repository_analysis(analysis, combined_analysis)
+                
             except Exception as e:
                 print(f"Error analyzing repository {repo}: {str(e)}", file=os.sys.stderr)
                 continue
 
+    def _aggregate_repository_analysis(self, analysis: Dict, combined_analysis: Dict) -> None:
+        """Aggregate a single repository's analysis into the combined analysis."""
+        # Aggregate overall stats
+        self._aggregate_overall_stats(analysis, combined_analysis)
+        
+        # Aggregate user stats
+        self._aggregate_user_stats(analysis, combined_analysis)
+        
+        # Aggregate review stats
+        self._aggregate_review_stats(analysis, combined_analysis)
+        
+        # Aggregate comment stats
+        self._aggregate_comment_stats(analysis, combined_analysis)
+
+    def _aggregate_overall_stats(self, analysis: Dict, combined_analysis: Dict) -> None:
+        """Aggregate overall statistics."""
+        combined_analysis["overall_stats"]["total_prs"] += analysis["total_prs"]
+        combined_analysis["overall_stats"]["total_open_prs"] += analysis["open_prs"]
+        combined_analysis["overall_stats"]["total_merged_prs"] += analysis["merged_prs"]
+
+    def _aggregate_user_stats(self, analysis: Dict, combined_analysis: Dict) -> None:
+        """Aggregate user statistics."""
+        for user, stats in analysis["user_stats"].items():
+            if user not in combined_analysis["user_stats"]:
+                combined_analysis["user_stats"][user] = {
+                    "prs_created": 0,
+                    "prs_merged": 0,
+                    "total_comments_received": 0,
+                    "total_reviews_received": 0,
+                }
+
+            combined_analysis["user_stats"][user]["prs_created"] += stats["prs_created"]
+            combined_analysis["user_stats"][user]["prs_merged"] += stats["prs_merged"]
+            combined_analysis["user_stats"][user]["total_comments_received"] += stats["total_comments_received"]
+            combined_analysis["user_stats"][user]["total_reviews_received"] += stats["total_reviews_received"]
+
+    def _aggregate_review_stats(self, analysis: Dict, combined_analysis: Dict) -> None:
+        """Aggregate review statistics."""
+        for user, stats in analysis["review_stats"].items():
+            if user not in combined_analysis["review_stats"]:
+                combined_analysis["review_stats"][user] = {"reviews_given": 0, "comments_given": 0}
+
+            combined_analysis["review_stats"][user]["reviews_given"] += stats["reviews_given"]
+            combined_analysis["review_stats"][user]["comments_given"] += stats["comments_given"]
+
+    def _aggregate_comment_stats(self, analysis: Dict, combined_analysis: Dict) -> None:
+        """Aggregate comment statistics."""
+        for user, stats in analysis["comment_stats"].items():
+            if user not in combined_analysis["comment_stats"]:
+                combined_analysis["comment_stats"][user] = {"comments_given": 0, "comments_received": 0}
+
+            combined_analysis["comment_stats"][user]["comments_given"] += stats["comments_given"]
+            combined_analysis["comment_stats"][user]["comments_received"] += stats["comments_received"]
+
+    def _calculate_combined_statistics(self, combined_analysis: Dict) -> None:
+        """Calculate final combined statistics."""
         # Calculate overall averages
         total_durations = []
         for repo_analysis in combined_analysis["repositories"].values():
@@ -547,26 +640,20 @@ class GitHubIntegration:
             stats["comments_given"] for stats in combined_analysis["comment_stats"].values()
         )
 
-        # Cache the results for future use
-        if self.use_cache and self.cache:
-            from .github_results_cache import GitHubResultsCache
+    def _cache_analysis_results(self, repositories: List[str], since: str, combined_analysis: Dict) -> None:
+        """Cache the analysis results for future use."""
+        if not (self.use_cache and self.cache):
+            return
 
-            results_cache = GitHubResultsCache(self.cache.cache_dir)
+        from .github_results_cache import GitHubResultsCache
+        results_cache = GitHubResultsCache(self.cache.cache_dir)
 
-            # Get cache timestamps for validation
-            cache_timestamps = {}
-            for repo in repositories:
-                if self.cache.is_repository_cached(repo):
-                    all_metadata = self.cache.get_cache_metadata()
-                    repo_metadata = all_metadata.get("repositories", {}).get(repo, {})
-                    if repo_metadata and "last_sync" in repo_metadata:
-                        cache_timestamps[repo] = repo_metadata["last_sync"]
+        # Get cache timestamps for validation
+        cache_timestamps = self._get_cache_timestamps(repositories)
 
-            # Cache the results
-            results_cache.cache_results(repositories, combined_analysis, since, cache_timestamps)
-            print(f"Cached analysis results for {len(repositories)} repositories", file=sys.stderr)
-
-        return combined_analysis
+        # Cache the results
+        results_cache.cache_results(repositories, since, combined_analysis, cache_timestamps)
+        print(f"Cached analysis results for {len(repositories)} repositories", file=sys.stderr)
 
 
 def load_github_config() -> Tuple[str, str]:
