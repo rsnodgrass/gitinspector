@@ -211,53 +211,6 @@ class Runner(object):
                         activity_data, self.activity_normalize, self.activity_dual, self.activity_chart_type
                     )
                 )
-
-            # GitHub analysis in activity-only mode
-            if self.github:
-                try:
-                    from . import teamconfig
-                    from .github_integration import GitHubIntegration, load_github_config
-
-                    if teamconfig.has_github_repositories():
-                        github_repos = teamconfig.get_github_repositories()
-                        print(f"Analyzing {len(github_repos)} GitHub repositories...", file=sys.stderr)
-
-                        # Load GitHub configuration and initialize with cache
-                        try:
-                            app_id, private_key = load_github_config()
-                            github_integration = GitHubIntegration(
-                                app_id,
-                                private_key_path=private_key if os.path.exists(private_key) else None,
-                                private_key_content=private_key if not os.path.exists(private_key) else None,
-                                use_cache=True,  # Use cache by default
-                            )
-                        except GitHubIntegrationError:
-                            # If GitHub config is not available, try cache-only mode
-                            github_integration = GitHubIntegration(use_cache=True)
-
-                        # Analyze GitHub repositories
-                        from . import interval
-
-                        since_param = interval.get_since()
-                        until_param = interval.get_until()
-                        # Extract the date from "--since=YYYY-MM-DD" format
-                        since_date = since_param.replace("--since=", "") if since_param else None
-                        until_date = until_param.replace("--until=", "") if until_param else None
-                        github_data = github_integration.analyze_multiple_repositories(
-                            github_repos, since_date, until_date
-                        )
-
-                        # Output GitHub analysis
-                        from .output.githuboutput import GitHubOutput
-
-                        outputable.output(GitHubOutput(github_data))
-                    else:
-                        print(
-                            "Warning: --github specified but no GitHub repositories found in config file",
-                            file=sys.stderr,
-                        )
-                except Exception as e:
-                    print(f"Error during GitHub analysis: {str(e)}", file=sys.stderr)
         else:
             # Standard mode: show requested outputs
             outputable.output(ChangesOutput(summed_changes))
@@ -289,59 +242,59 @@ class Runner(object):
                         )
                     )
 
-                # GitHub analysis
-                if self.github:
+        # GitHub analysis - independent of git commits or activity mode
+        if self.github:
+            try:
+                from . import teamconfig
+                from .github_integration import GitHubIntegration, load_github_config
+
+                # Load team config to get GitHub repositories if not already loaded
+                if not teamconfig.has_github_repositories():
                     try:
-                        from . import teamconfig
-                        from .github_integration import GitHubIntegration, load_github_config
+                        teamconfig.load_team_config("team_config.json", enable_team_filtering=False)
+                    except teamconfig.TeamConfigError:
+                        pass  # Continue even if team config loading fails
 
-                        # Load team config to get GitHub repositories if not already loaded
-                        if not teamconfig.has_github_repositories():
-                            try:
-                                teamconfig.load_team_config("team_config.json", enable_team_filtering=False)
-                            except teamconfig.TeamConfigError:
-                                pass  # Continue even if team config loading fails
+                if teamconfig.has_github_repositories():
+                    github_repos = teamconfig.get_github_repositories()
+                    print(f"Analyzing {len(github_repos)} GitHub repositories...", file=sys.stderr)
 
-                        if teamconfig.has_github_repositories():
-                            github_repos = teamconfig.get_github_repositories()
-                            print(f"Analyzing {len(github_repos)} GitHub repositories...", file=sys.stderr)
+                    # Load GitHub configuration and initialize with cache
+                    try:
+                        app_id, private_key = load_github_config()
+                        github_integration = GitHubIntegration(
+                            app_id,
+                            private_key_path=private_key if os.path.exists(private_key) else None,
+                            private_key_content=private_key if not os.path.exists(private_key) else None,
+                            use_cache=True,  # Use cache by default
+                        )
+                    except GitHubIntegrationError:
+                        # If GitHub config is not available, try cache-only mode
+                        github_integration = GitHubIntegration(use_cache=True)
 
-                            # Load GitHub configuration and initialize with cache
-                            try:
-                                app_id, private_key = load_github_config()
-                                github_integration = GitHubIntegration(
-                                    app_id,
-                                    private_key_path=private_key if os.path.exists(private_key) else None,
-                                    private_key_content=private_key if not os.path.exists(private_key) else None,
-                                    use_cache=True,  # Use cache by default
-                                )
-                            except GitHubIntegrationError:
-                                # If GitHub config is not available, try cache-only mode
-                                github_integration = GitHubIntegration(use_cache=True)
+                    # Analyze GitHub repositories
+                    from . import interval
 
-                            # Analyze GitHub repositories
-                            from . import interval
+                    since_param = interval.get_since()
+                    until_param = interval.get_until()
+                    # Extract the date from "--since=YYYY-MM-DD" format
+                    since_date = since_param.replace("--since=", "") if since_param else None
+                    until_date = until_param.replace("--until=", "") if until_param else None
+                    github_data = github_integration.analyze_multiple_repositories(
+                        github_repos, since_date, until_date
+                    )
 
-                            since_param = interval.get_since()
-                            until_param = interval.get_until()
-                            # Extract the date from "--since=YYYY-MM-DD" format
-                            since_date = since_param.replace("--since=", "") if since_param else None
-                            until_date = until_param.replace("--until=", "") if until_param else None
-                            github_data = github_integration.analyze_multiple_repositories(
-                                github_repos, since_date, until_date
-                            )
+                    # Output GitHub analysis
+                    from .output.githuboutput import GitHubOutput
 
-                            # Output GitHub analysis
-                            from .output.githuboutput import GitHubOutput
-
-                            outputable.output(GitHubOutput(github_data))
-                        else:
-                            print(
-                                "Warning: --github specified but no GitHub repositories found in config file",
-                                file=sys.stderr,
-                            )
-                    except Exception as e:
-                        print(f"Error during GitHub analysis: {str(e)}", file=sys.stderr)
+                    outputable.output(GitHubOutput(github_data))
+                else:
+                    print(
+                        "Warning: --github specified but no GitHub repositories found in config file",
+                        file=sys.stderr,
+                    )
+            except Exception as e:
+                print(f"Error during GitHub analysis: {str(e)}", file=sys.stderr)
 
         format.output_footer()
         os.chdir(previous_directory)
