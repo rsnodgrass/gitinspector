@@ -148,8 +148,8 @@ class GitHubIntegration:
 
         return response.json()
 
-    def _filter_cached_prs(self, prs: List[Dict], state: str, since: str = None) -> List[Dict]:
-        """Filter cached PRs by state and since date."""
+    def _filter_cached_prs(self, prs: List[Dict], state: str, since: str = None, until: str = None) -> List[Dict]:
+        """Filter cached PRs by state, since date, and until date."""
         filtered_prs = []
 
         for pr in prs:
@@ -157,8 +157,8 @@ class GitHubIntegration:
             if state != "all" and pr.get("state") != state:
                 continue
 
-            # Filter by since date - convert to datetime for proper comparison
-            if since:
+            # Filter by date range - convert to datetime for proper comparison
+            if since or until:
                 try:
                     from datetime import datetime, timezone
 
@@ -166,14 +166,27 @@ class GitHubIntegration:
                     pr_created = datetime.fromisoformat(pr_created_str.replace("Z", "+00:00"))
 
                     # Parse since date and make it timezone-aware (assume UTC if no timezone)
-                    if "T" in since or "Z" in since:
-                        since_date = datetime.fromisoformat(since.replace("Z", "+00:00"))
-                    else:
-                        # If it's just a date like "2025-08-01", assume UTC midnight
-                        since_date = datetime.fromisoformat(since + "T00:00:00+00:00")
+                    if since:
+                        if "T" in since or "Z" in since:
+                            since_date = datetime.fromisoformat(since.replace("Z", "+00:00"))
+                        else:
+                            # If it's just a date like "2025-08-01", assume UTC midnight
+                            since_date = datetime.fromisoformat(since + "T00:00:00+00:00")
 
-                    if pr_created < since_date:
-                        continue
+                        if pr_created < since_date:
+                            continue
+
+                    # Parse until date and make it timezone-aware (assume UTC if no timezone)
+                    if until:
+                        if "T" in until or "Z" in until:
+                            until_date = datetime.fromisoformat(until.replace("Z", "+00:00"))
+                        else:
+                            # If it's just a date like "2025-08-01", assume UTC end of day
+                            until_date = datetime.fromisoformat(until + "T23:59:59+00:00")
+
+                        if pr_created > until_date:
+                            continue
+
                 except (ValueError, TypeError):
                     # If date parsing fails, skip this PR
                     continue
@@ -209,7 +222,9 @@ class GitHubIntegration:
 
         return prs
 
-    def get_pull_requests(self, owner: str, repo: str, state: str = "all", since: str = None) -> List[Dict]:
+    def get_pull_requests(
+        self, owner: str, repo: str, state: str = "all", since: str = None, until: str = None
+    ) -> List[Dict]:
         """
         Get pull requests for a repository.
 
@@ -218,6 +233,7 @@ class GitHubIntegration:
             repo: Repository name
             state: PR state (open, closed, all)
             since: ISO 8601 timestamp to filter PRs created after this time
+            until: ISO 8601 timestamp to filter PRs created before this time
 
         Returns:
             List of pull request data
@@ -227,7 +243,7 @@ class GitHubIntegration:
         # If using cache, try to get from cache first
         if self.use_cache and self.cache.is_repository_cached(repository):
             if cached_prs := self.cache.get_cached_pull_requests(repository):
-                return self._filter_cached_prs(cached_prs, state, since)
+                return self._filter_cached_prs(cached_prs, state, since, until)
 
         # If not using cache, fetch from API
         if not self.use_cache:
@@ -298,14 +314,15 @@ class GitHubIntegration:
 
         raise GitHubIntegrationError(f"No cached data available for {repository}. Run the sync script first.")
 
-    def analyze_repository_prs(self, owner: str, repo: str, since: str = None) -> Dict:
+    def analyze_repository_prs(self, owner: str, repo: str, since: str = None, until: str = None) -> Dict:
         """
         Analyze PR data for a repository.
 
         Args:
             owner: Repository owner
             repo: Repository name
-            since: ISO 8601 timestamp to filter PRs
+            since: ISO 8601 timestamp to filter PRs created after this time
+            until: ISO 8601 timestamp to filter PRs created before this time
 
         Returns:
             Dictionary containing PR analysis data
@@ -313,7 +330,7 @@ class GitHubIntegration:
         print(f"Analyzing PRs for {owner}/{repo}...", file=os.sys.stderr)
 
         # Get all PRs
-        prs = self.get_pull_requests(owner, repo, since=since)
+        prs = self.get_pull_requests(owner, repo, since=since, until=until)
 
         analysis = {
             "repository": f"{owner}/{repo}",
@@ -417,7 +434,7 @@ class GitHubIntegration:
 
         return analysis
 
-    def analyze_multiple_repositories(self, repositories: List[str], since: str = None) -> Dict:
+    def analyze_multiple_repositories(self, repositories: List[str], since: str = None, until: str = None) -> Dict:
         """
         Analyze PR data for multiple repositories.
 
@@ -468,7 +485,7 @@ class GitHubIntegration:
         for repo in repositories:
             try:
                 owner, repo_name = repo.split("/", 1)
-                analysis = self.analyze_repository_prs(owner, repo_name, since)
+                analysis = self.analyze_repository_prs(owner, repo_name, since, until)
 
                 combined_analysis["repositories"][repo] = analysis
 

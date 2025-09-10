@@ -237,10 +237,15 @@ class Runner(object):
 
                         # Analyze GitHub repositories
                         from . import interval
+
                         since_param = interval.get_since()
+                        until_param = interval.get_until()
                         # Extract the date from "--since=YYYY-MM-DD" format
                         since_date = since_param.replace("--since=", "") if since_param else None
-                        github_data = github_integration.analyze_multiple_repositories(github_repos, since_date)
+                        until_date = until_param.replace("--until=", "") if until_param else None
+                        github_data = github_integration.analyze_multiple_repositories(
+                            github_repos, since_date, until_date
+                        )
 
                         # Output GitHub analysis
                         from .output.githuboutput import GitHubOutput
@@ -316,10 +321,15 @@ class Runner(object):
 
                             # Analyze GitHub repositories
                             from . import interval
+
                             since_param = interval.get_since()
+                            until_param = interval.get_until()
                             # Extract the date from "--since=YYYY-MM-DD" format
                             since_date = since_param.replace("--since=", "") if since_param else None
-                            github_data = github_integration.analyze_multiple_repositories(github_repos, since_date)
+                            until_date = until_param.replace("--until=", "") if until_param else None
+                            github_data = github_integration.analyze_multiple_repositories(
+                                github_repos, since_date, until_date
+                            )
 
                             # Output GitHub analysis
                             from .output.githuboutput import GitHubOutput
