@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Working tests to ensure GitHub analysis runs independently of git commits.
+Working test to verify GitHub analysis runs independently of git commits.
 """
 
 import os
@@ -16,7 +16,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from gitinspector.gitinspector import Runner
 from gitinspector import teamconfig
-from gitinspector.github_integration import GitHubIntegrationError
 
 
 class TestGitHubIndependenceWorking(unittest.TestCase):
@@ -38,11 +37,9 @@ class TestGitHubIndependenceWorking(unittest.TestCase):
         with patch("gitinspector.gitinspector.teamconfig.load_team_config") as mock_load:
             mock_load.return_value = None
 
-            # Mock has_github_repositories to return True
             with patch("gitinspector.gitinspector.teamconfig.has_github_repositories") as mock_has_repos:
                 mock_has_repos.return_value = True
 
-                # Mock get_github_repositories to return test repos
                 with patch("gitinspector.gitinspector.teamconfig.get_github_repositories") as mock_get_repos:
                     mock_get_repos.return_value = ["test-owner/test-repo"]
 
@@ -51,7 +48,6 @@ class TestGitHubIndependenceWorking(unittest.TestCase):
                         mock_github_instance = MagicMock()
                         mock_github_class.return_value = mock_github_instance
 
-                        # Mock the analysis to return test data
                         mock_github_instance.analyze_multiple_repositories.return_value = {
                             "total_repositories": 1,
                             "repositories": {"test-owner/test-repo": {"total_prs": 5}},
@@ -61,7 +57,6 @@ class TestGitHubIndependenceWorking(unittest.TestCase):
                             "comment_stats": {},
                         }
 
-                        # Mock load_github_config
                         with patch("gitinspector.github_integration.load_github_config") as mock_config:
                             mock_config.return_value = ("test-app-id", "test-key")
 
