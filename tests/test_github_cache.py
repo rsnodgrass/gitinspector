@@ -215,6 +215,71 @@ class TestGitHubCache(unittest.TestCase):
         repos = self.cache.get_cached_repositories()
         self.assertEqual(set(repos), {"test/repo1", "test/repo2"})
 
+    def test_general_comments_operations(self):
+        """Test general comments cache operations."""
+        repository = "test/repo"
+        pr_number = 123
+        general_comments = [
+            {
+                "id": 1,
+                "user": {"login": "reviewer1"},
+                "body": "General comment 1",
+                "created_at": "2025-09-05T10:00:00Z",
+            },
+            {
+                "id": 2,
+                "user": {"login": "reviewer2"},
+                "body": "General comment 2",
+                "created_at": "2025-09-05T11:00:00Z",
+            },
+        ]
+
+        # Test caching
+        self.cache.cache_general_comments(repository, pr_number, general_comments)
+
+        # Test retrieval
+        cached_comments = self.cache.get_cached_general_comments(repository, pr_number)
+        self.assertEqual(len(cached_comments), 2)
+        self.assertEqual(cached_comments[0]["id"], 1)
+        self.assertEqual(cached_comments[0]["user"]["login"], "reviewer1")
+        self.assertEqual(cached_comments[1]["id"], 2)
+        self.assertEqual(cached_comments[1]["user"]["login"], "reviewer2")
+
+        # Test retrieval for non-existent PR
+        empty_comments = self.cache.get_cached_general_comments(repository, 999)
+        self.assertEqual(empty_comments, [])
+
+        # Test retrieval for non-existent repository
+        empty_comments = self.cache.get_cached_general_comments("nonexistent/repo", pr_number)
+        self.assertEqual(empty_comments, [])
+
+    def test_clear_repository_cache_includes_general_comments(self):
+        """Test that clearing repository cache also clears general comments."""
+        repository = "test/repo"
+        pr_number = 123
+        general_comments = [
+            {
+                "id": 1,
+                "user": {"login": "reviewer1"},
+                "body": "Test general comment",
+                "created_at": "2025-09-05T10:00:00Z",
+            }
+        ]
+
+        # Cache some general comments
+        self.cache.cache_general_comments(repository, pr_number, general_comments)
+
+        # Verify they exist
+        cached_comments = self.cache.get_cached_general_comments(repository, pr_number)
+        self.assertEqual(len(cached_comments), 1)
+
+        # Clear the repository cache
+        self.cache.clear_repository_cache(repository)
+
+        # Verify general comments are cleared
+        cleared_comments = self.cache.get_cached_general_comments(repository, pr_number)
+        self.assertEqual(cleared_comments, [])
+
     def test_json_file_errors(self):
         """Test handling of JSON file errors."""
         # Create invalid JSON file

@@ -39,6 +39,7 @@ class GitHubCache:
         self.reviews_file = self.cache_dir / "reviews.json"
         self.comments_file = self.cache_dir / "comments.json"
         self.review_comments_file = self.cache_dir / "review_comments.json"
+        self.general_comments_file = self.cache_dir / "general_comments.json"
 
     def _load_json_file(self, file_path: Path) -> Dict:
         """Load JSON data from file."""
@@ -147,6 +148,21 @@ class GitHubCache:
         review_comments_data = self._load_json_file(self.review_comments_file)
         return review_comments_data.get(repository, {}).get(str(pr_number), [])
 
+    def cache_general_comments(self, repository: str, pr_number: int, general_comments: List[Dict]) -> None:
+        """Cache general comments for a specific PR."""
+        general_comments_data = self._load_json_file(self.general_comments_file)
+
+        if repository not in general_comments_data:
+            general_comments_data[repository] = {}
+
+        general_comments_data[repository][str(pr_number)] = general_comments
+        self._save_json_file(self.general_comments_file, general_comments_data)
+
+    def get_cached_general_comments(self, repository: str, pr_number: int) -> List[Dict]:
+        """Get cached general comments for a specific PR."""
+        general_comments_data = self._load_json_file(self.general_comments_file)
+        return general_comments_data.get(repository, {}).get(str(pr_number), [])
+
     def clear_repository_cache(self, repository: str) -> None:
         """Clear all cached data for a repository."""
         # Clear PRs
@@ -172,6 +188,12 @@ class GitHubCache:
         if repository in review_comments_data:
             del review_comments_data[repository]
             self._save_json_file(self.review_comments_file, review_comments_data)
+
+        # Clear general comments
+        general_comments_data = self._load_json_file(self.general_comments_file)
+        if repository in general_comments_data:
+            del general_comments_data[repository]
+            self._save_json_file(self.general_comments_file, general_comments_data)
 
         # Clear metadata
         metadata = self.get_cache_metadata()

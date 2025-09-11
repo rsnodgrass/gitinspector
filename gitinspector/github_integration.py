@@ -242,7 +242,8 @@ class GitHubIntegration:
 
         # If using cache, try to get from cache first
         if self.use_cache and self.cache.is_repository_cached(repository):
-            if cached_prs := self.cache.get_cached_pull_requests(repository):
+            cached_prs = self.cache.get_cached_pull_requests(repository)
+            if cached_prs is not None:
                 return self._filter_cached_prs(cached_prs, state, since, until)
 
         # If not using cache, fetch from API
@@ -314,6 +315,27 @@ class GitHubIntegration:
 
         raise GitHubIntegrationError(f"No cached data available for {repository}. Run the sync script first.")
 
+    def get_pr_general_comments(self, owner: str, repo: str, pr_number: int) -> List[Dict]:
+        """Get general PR comments (issue comments) for a specific pull request."""
+        repository = f"{owner}/{repo}"
+
+        # If using cache, try to get from cache first
+        if self.use_cache and self.cache.is_repository_cached(repository):
+            return self.cache.get_cached_general_comments(repository, pr_number)
+
+        # If not using cache, fetch from API
+        if not self.use_cache:
+            try:
+                return self._make_authenticated_request(owner, repo, f"issues/{pr_number}/comments")
+            except GitHubIntegrationError as e:
+                if "404" in str(e):
+                    # No general comments exist for this PR - this is normal
+                    return []
+                # Re-raise other errors
+                raise
+
+        raise GitHubIntegrationError(f"No cached data available for {repository}. Run the sync script first.")
+
     def analyze_repository_prs(self, owner: str, repo: str, since: str = None, until: str = None) -> Dict:
         """
         Analyze PR data for a repository.
@@ -327,7 +349,7 @@ class GitHubIntegration:
         Returns:
             Dictionary containing PR analysis data
         """
-        print(f"Analyzing PRs for {owner}/{repo}...", file=os.sys.stderr)
+        self._log_analysis_start(owner, repo)
 
         # Get all PRs
         prs = self.get_pull_requests(owner, repo, since=since, until=until)
@@ -342,6 +364,10 @@ class GitHubIntegration:
         self._calculate_final_statistics(analysis)
 
         return analysis
+
+    def _log_analysis_start(self, owner: str, repo: str) -> None:
+        """Log the start of analysis for a repository."""
+        print(f"Analyzing PRs for {owner}/{repo}...", file=os.sys.stderr)
 
     def _initialize_analysis_structure(self, repository: str) -> Dict:
         """Initialize the analysis data structure."""
@@ -365,7 +391,11 @@ class GitHubIntegration:
         for i, pr in enumerate(prs, 1):
             self._show_progress(i, total_prs)
             self._process_single_pr(owner, repo, pr, analysis)
-            time.sleep(0.1)  # Rate limiting
+            self._apply_rate_limiting()
+
+    def _apply_rate_limiting(self) -> None:
+        """Apply rate limiting between PR processing."""
+        time.sleep(0.1)  # Rate limiting
 
     def _show_progress(self, current: int, total: int) -> None:
         """Show progress for PR processing."""
@@ -376,21 +406,36 @@ class GitHubIntegration:
         """Process a single PR and update analysis data."""
         # Process basic PR information
         self._process_pr_basic_info(pr, analysis)
-        
+
         # Process user statistics
         self._process_pr_user_stats(pr, analysis)
-        
+
         # Get and process reviews and comments
-        reviews = self.get_pr_reviews(owner, repo, pr["number"])
-        comments = self.get_pr_comments(owner, repo, pr["number"])
-        review_comments = self.get_pr_review_comments(owner, repo, pr["number"])
-        
-        # Process review statistics
+        pr_data = self._fetch_pr_related_data(owner, repo, pr["number"])
+        self._process_pr_related_data(pr, pr_data, analysis)
+
+    def _fetch_pr_related_data(self, owner: str, repo: str, pr_number: int) -> Dict:
+        """Fetch all data related to a PR (reviews, comments, review comments)."""
+        return {
+            "reviews": self.get_pr_reviews(owner, repo, pr_number),
+            "comments": self.get_pr_comments(owner, repo, pr_number),
+            "review_comments": self.get_pr_review_comments(owner, repo, pr_number),
+            "general_comments": self.get_pr_general_comments(owner, repo, pr_number),
+        }
+
+    def _process_pr_related_data(self, pr: Dict, pr_data: Dict, analysis: Dict) -> None:
+        """Process all data related to a PR (reviews, comments, etc.)."""
+        reviews = pr_data["reviews"]
+        comments = pr_data["comments"]
+        review_comments = pr_data["review_comments"]
+        general_comments = pr_data["general_comments"]
+
+        # Process comment statistics first
+        self._process_comment_stats(pr, comments, review_comments, general_comments, analysis)
+
+        # Process review statistics (after comment stats so comments_given is available)
         self._process_review_stats(reviews, analysis)
-        
-        # Process comment statistics
-        self._process_comment_stats(pr, comments, review_comments, analysis)
-        
+
         # Update reviews received for PR author
         author = pr["user"]["login"]
         analysis["user_stats"][author]["total_reviews_received"] += len(reviews)
@@ -416,7 +461,7 @@ class GitHubIntegration:
         """Process user statistics for a PR."""
         author = pr["user"]["login"]
         self._ensure_user_in_stats(author, analysis["user_stats"])
-        
+
         analysis["user_stats"][author]["prs_created"] += 1
         if pr["merged_at"]:
             analysis["user_stats"][author]["prs_merged"] += 1
@@ -439,11 +484,19 @@ class GitHubIntegration:
                 analysis["review_stats"][reviewer] = {"reviews_given": 0, "comments_given": 0}
             analysis["review_stats"][reviewer]["reviews_given"] += 1
 
-    def _process_comment_stats(self, pr: Dict, comments: List[Dict], review_comments: List[Dict], analysis: Dict) -> None:
+            # Count comments given by this reviewer
+            if reviewer in analysis["comment_stats"]:
+                analysis["review_stats"][reviewer]["comments_given"] = analysis["comment_stats"][reviewer][
+                    "comments_given"
+                ]
+
+    def _process_comment_stats(
+        self, pr: Dict, comments: List[Dict], review_comments: List[Dict], general_comments: List[Dict], analysis: Dict
+    ) -> None:
         """Process comment statistics."""
         author = pr["user"]["login"]
-        all_comments = comments + review_comments
-        
+        all_comments = comments + review_comments + general_comments
+
         # Process individual comments
         for comment in all_comments:
             commenter = comment["user"]["login"]
@@ -457,13 +510,16 @@ class GitHubIntegration:
         """Ensure commenter exists in both comment_stats and user_stats."""
         if commenter not in analysis["comment_stats"]:
             analysis["comment_stats"][commenter] = {"comments_given": 0, "comments_received": 0}
-        
+
         self._ensure_user_in_stats(commenter, analysis["user_stats"])
 
     def _update_author_comment_stats(self, author: str, all_comments: List[Dict], analysis: Dict) -> None:
         """Update comment statistics for PR author."""
+        # Ensure author exists in user_stats
+        self._ensure_user_in_stats(author, analysis["user_stats"])
+
         analysis["user_stats"][author]["total_comments_received"] += len(all_comments)
-        
+
         if author not in analysis["comment_stats"]:
             analysis["comment_stats"][author] = {"comments_given": 0, "comments_received": 0}
         analysis["comment_stats"][author]["comments_received"] += len(all_comments)
@@ -513,6 +569,7 @@ class GitHubIntegration:
             return None
 
         from .github_results_cache import GitHubResultsCache
+
         results_cache = GitHubResultsCache(self.cache.cache_dir)
 
         # Get cache timestamps for validation
@@ -560,10 +617,10 @@ class GitHubIntegration:
             try:
                 owner, repo_name = repo.split("/", 1)
                 analysis = self.analyze_repository_prs(owner, repo_name, since, until)
-                
+
                 combined_analysis["repositories"][repo] = analysis
                 self._aggregate_repository_analysis(analysis, combined_analysis)
-                
+
             except Exception as e:
                 print(f"Error analyzing repository {repo}: {str(e)}", file=os.sys.stderr)
                 continue
@@ -572,13 +629,13 @@ class GitHubIntegration:
         """Aggregate a single repository's analysis into the combined analysis."""
         # Aggregate overall stats
         self._aggregate_overall_stats(analysis, combined_analysis)
-        
+
         # Aggregate user stats
         self._aggregate_user_stats(analysis, combined_analysis)
-        
+
         # Aggregate review stats
         self._aggregate_review_stats(analysis, combined_analysis)
-        
+
         # Aggregate comment stats
         self._aggregate_comment_stats(analysis, combined_analysis)
 
@@ -646,6 +703,7 @@ class GitHubIntegration:
             return
 
         from .github_results_cache import GitHubResultsCache
+
         results_cache = GitHubResultsCache(self.cache.cache_dir)
 
         # Get cache timestamps for validation
