@@ -7,6 +7,7 @@ to the current process. This is useful for development and testing.
 """
 
 import os
+import sys
 from pathlib import Path
 
 
@@ -24,7 +25,7 @@ def load_env_file(env_file=".env"):
         print("Please create a .env file with your GitHub credentials")
         return False
 
-    print(f"📄 Loading environment variables from {env_file}")
+    print(f"📄 Loading environment variables from {env_file}", file=sys.stderr)
 
     with open(env_path, "r") as f:
         for line_num, line in enumerate(f, 1):
@@ -48,11 +49,11 @@ def load_env_file(env_file=".env"):
 
                 # Set environment variable
                 os.environ[key] = value
-                print(f"  ✅ {key} = {'*' * len(value) if 'KEY' in key.upper() else value}")
+                print(f"  ✅ {key} = {'*' * len(value) if 'KEY' in key.upper() else value}", file=sys.stderr)
             else:
                 print(f"  ⚠️  Skipping invalid line {line_num}: {line}")
 
-    print("🎉 Environment variables loaded successfully!")
+    print("🎉 Environment variables loaded successfully!", file=sys.stderr)
     return True
 
 
