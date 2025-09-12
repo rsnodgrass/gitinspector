@@ -340,22 +340,24 @@ python gitinspector.py \
 
 ### GitHub Integration
 
-GitInspector now supports GitHub integration to analyze Pull Request data and team collaboration metrics:
+GitInspector supports comprehensive GitHub integration to analyze Pull Request data and team collaboration metrics with **local caching** for optimal performance:
 
 **Features:**
 - **PR Duration Analysis**: Track how long PRs stay open from creation to merge
 - **Review Metrics**: Count reviews given and received per team member
 - **Comment Analytics**: Track comments given on others' PRs and received on your own
 - **Team Collaboration Insights**: Understand review patterns and feedback cycles
+- **Local Caching**: Fast analysis using locally cached GitHub data
+- **Incremental Syncing**: Only fetch new/updated data since last sync
+- **Results Caching**: Cache processed analysis results for instant subsequent runs
 
 **Setup:**
 1. **Create GitHub App**: Set up a GitHub App with repository access permissions
-2. **Environment Configuration**: Set credentials in environment variables:
+2. **Environment Configuration**: Create a `.env` file with your credentials:
    ```bash
-   export GITHUB_APP_ID=your_app_id
-   export GITHUB_PRIVATE_KEY_PATH=/path/to/private_key.pem
-   # OR
-   export GITHUB_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----"
+   # Create .env file
+   echo "GITHUB_APP_ID=your_app_id" > .env
+   echo "GITHUB_PRIVATE_KEY_PATH=/path/to/private_key.pem" >> .env
    ```
 3. **Configuration File**: Add GitHub repositories to `team_config.json`:
    ```json
@@ -363,10 +365,21 @@ GitInspector now supports GitHub integration to analyze Pull Request data and te
      "github_repositories": ["owner/repo1", "owner/repo2"]
    }
    ```
+4. **Initial Data Sync**: Sync GitHub data to local cache:
+   ```bash
+   # Full sync (first time)
+   python sync_github_cache.py --repos owner/repo1 owner/repo2
+   
+   # Incremental sync (subsequent runs)
+   python sync_github_cache.py
+   
+   # Test mode (small data sample)
+   python sync_github_cache.py --test-mode
+   ```
 
 **Usage:**
 ```bash
-# Analyze GitHub PRs for repositories in config
+# Analyze GitHub PRs using cached data (fast)
 python gitinspector.py --github -F html -f "**" > github_analysis.html
 
 # Combine with local repository analysis
@@ -374,7 +387,19 @@ python gitinspector.py --github --config-repos -F html -f "**" > combined_analys
 
 # Team filtering with GitHub analysis
 python gitinspector.py --team --github -F html -f "**" > team_github_analysis.html
+
+# Date range filtering with GitHub data
+python gitinspector.py --since 2025-01-01 --until 2025-03-31 --github -F html > q1_analysis.html
+
+# Clear cached results to force fresh analysis
+python gitinspector.py --github --clear-results -F html > fresh_analysis.html
 ```
+
+**Performance Features:**
+- **Local Caching**: GitHub data is cached locally in `.github_cache/` directory
+- **Results Caching**: Processed analysis results are cached for instant subsequent runs
+- **Incremental Sync**: Only fetch new/updated PRs since last sync
+- **Cache Management**: Use `--clear-results` to force fresh analysis when needed
 
 **Output Includes:**
 - **Overall Statistics**: Total PRs, reviews, comments across all repositories
@@ -382,6 +407,25 @@ python gitinspector.py --team --github -F html -f "**" > team_github_analysis.ht
 - **User Statistics**: PR creation, merge rates, feedback received
 - **Review Statistics**: Reviews given, comments provided
 - **Comment Statistics**: Engagement metrics for team collaboration
+
+### Recent Enhancements
+
+**GitHub Integration & Caching:**
+- **Local Data Caching**: GitHub data is cached locally for fast analysis without repeated API calls
+- **Incremental Syncing**: Only fetch new/updated data since last sync using `sync_github_cache.py`
+- **Results Caching**: Processed analysis results are cached for instant subsequent runs
+- **Environment Configuration**: Support for `.env` files for secure credential management
+- **Date Range Filtering**: Enhanced `--since` and `--until` parameter support for GitHub analysis
+
+**Performance Improvements:**
+- **Smart Caching**: Automatic cache invalidation when underlying data changes
+- **Debug Message Handling**: Debug messages no longer appear in HTML output files
+- **Gitignore Integration**: HTML reports are automatically ignored to prevent accidental commits
+
+**New Command Line Options:**
+- **`--until`**: Specify end date for analysis range
+- **`--clear-results`**: Clear cached analysis results to force fresh computation
+- **`--test-mode`**: Test GitHub integration with small data samples
 
 ### Enhanced HTML Output
 
@@ -432,6 +476,8 @@ The HTML output format has been significantly enhanced with modern features:
 - **Repository Management**: Store repository paths in config files with `--config-repos`
 - **Flexible Configuration**: Use standardized `team_config.json` for team and repository definitions
 - **Date Ranges**: Analyze specific time periods with `--since`/`--until` or `--quarter`
+- **GitHub Integration**: Analyze Pull Request data with local caching and incremental syncing
+- **Results Caching**: Cache processed analysis results for faster subsequent runs
 - **Exclusion Patterns**: Exclude specific files, authors, or commits with `-x`
 - **Localization**: Support for multiple languages with `-L`
 
