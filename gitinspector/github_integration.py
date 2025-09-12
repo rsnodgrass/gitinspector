@@ -546,7 +546,7 @@ class GitHubIntegration:
             Dictionary containing combined analysis data
         """
         # Try to get cached results first
-        if cached_results := self._try_get_cached_results(repositories, since):
+        if cached_results := self._try_get_cached_results(repositories, since, until):
             return cached_results
 
         # Initialize combined analysis structure
@@ -559,11 +559,11 @@ class GitHubIntegration:
         self._calculate_combined_statistics(combined_analysis)
 
         # Cache the results for future use
-        self._cache_analysis_results(repositories, since, combined_analysis)
+        self._cache_analysis_results(repositories, since, until, combined_analysis)
 
         return combined_analysis
 
-    def _try_get_cached_results(self, repositories: List[str], since: str) -> Dict:
+    def _try_get_cached_results(self, repositories: List[str], since: str, until: str = None) -> Dict:
         """Try to get cached results for the repositories."""
         if not (self.use_cache and self.cache):
             return None
@@ -576,7 +576,7 @@ class GitHubIntegration:
         cache_timestamps = self._get_cache_timestamps(repositories)
 
         # Try to get cached results
-        if cached_results := results_cache.get_cached_results(repositories, since, cache_timestamps):
+        if cached_results := results_cache.get_cached_results(repositories, since, until, cache_timestamps):
             print(f"Using cached analysis results for {len(repositories)} repositories", file=sys.stderr)
             return cached_results
 
@@ -697,7 +697,9 @@ class GitHubIntegration:
             stats["comments_given"] for stats in combined_analysis["comment_stats"].values()
         )
 
-    def _cache_analysis_results(self, repositories: List[str], since: str, combined_analysis: Dict) -> None:
+    def _cache_analysis_results(
+        self, repositories: List[str], since: str, until: str, combined_analysis: Dict
+    ) -> None:
         """Cache the analysis results for future use."""
         if not (self.use_cache and self.cache):
             return
@@ -710,7 +712,7 @@ class GitHubIntegration:
         cache_timestamps = self._get_cache_timestamps(repositories)
 
         # Cache the results
-        results_cache.cache_results(repositories, since, combined_analysis, cache_timestamps)
+        results_cache.cache_results(repositories, combined_analysis, since, until, cache_timestamps)
         print(f"Cached analysis results for {len(repositories)} repositories", file=sys.stderr)
 
 
