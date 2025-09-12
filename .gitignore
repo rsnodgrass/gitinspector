@@ -17,3 +17,6 @@ venv/
 
 # Test repositories (permanent test fixtures)
 tests/test_repositories/
+
+# Generated HTML reports in root directory
+*.html
