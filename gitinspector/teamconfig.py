@@ -18,6 +18,7 @@
 # along with gitinspector. If not, see <http://www.gnu.org/licenses/>.
 
 import os
+import sys
 import json
 
 # Global variables to store team members and repositories
@@ -93,10 +94,14 @@ def load_team_config(config_file_path, enable_team_filtering=True):
             print(
                 "Loaded team config with {0} members, {1} repositories, and {2} GitHub repositories from {3}".format(
                     len(__team_members__), repo_count, github_repo_count, config_file_path
-                )
+                ),
+                file=sys.stderr,
             )
         else:
-            print("Loaded team config with {0} members from {1}".format(len(__team_members__), config_file_path))
+            print(
+                "Loaded team config with {0} members from {1}".format(len(__team_members__), config_file_path),
+                file=sys.stderr,
+            )
 
     except json.JSONDecodeError as e:
         raise TeamConfigError("Error parsing JSON file {0}: {1}".format(config_file_path, str(e)))
@@ -163,4 +168,4 @@ def get_github_repositories():
 
 def has_github_repositories():
     """Check if GitHub repositories are loaded from config file."""
-    return __github_repositories_loaded__
+    return __github_repositories_loaded__ and len(__github_repositories__) > 0
